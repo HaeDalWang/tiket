@@ -1,0 +1,56 @@
+# macOS
+.DS_Store
+.AppleDouble
+Icon?
+
+# 자격증명 — private 저장소라도 예외 없음
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+credentials
+credentials.json
+*credential*
+*.token
+.token_cache*
+*secret*.tfvars
+config.local.*
+
+# 실행 로그 — 계정 식별자·리소스 정보가 섞일 수 있어 기본 제외
+# (durations.csv 같은 요약 산출물은 통과됨)
+**/logs/*.log
+
+# 로컬 민감 자료와 대용량 회사 규정 원본
+.private/
+회사규정/원본/
+회사규정/수신함/*
+!회사규정/수신함/README.md
+
+# 에이전트별 로컬 설정·작업공간
+.claude/settings.local.json
+.claude/worktrees/
+.kiro/settings.local.json
+.hermes/local/
+
+# 인프라 상태·고객 자격증명 파일
+*.kubeconfig
+kubeconfig*
+terraform.tfstate
+terraform.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# 임시 파일
+*.tmp
+*.swp
+*~
+~$*
+.~lock.*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
