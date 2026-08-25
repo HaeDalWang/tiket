@@ -67,9 +67,10 @@ At the boundary, stop and hand the work to a human. Do not search for a workarou
 ## 6. Capability routing
 
 - Use capability names and constraints from `에이전트/기능_카탈로그.md` rather than assuming identical tool names across agents.
-- `aws-customer-account-ops` is the approved implementation for customer AWS read-only access and FitCloud billing where installed.
+- `aws-customer-account-ops` is temporarily blocked because a known issue is under developer repair. Do not install or invoke any existing copy until a fixed release passes the broker read-only and FitCloud-output re-enable gates in `에이전트/런타임_상태.md`.
 - `aws-core:*` is generic reference knowledge and never grants customer-account write permission.
 - AWS MCP documentation search and customer-account execution are separate capabilities. An AWS MCP connection does not imply broker-enforced read-only access.
+- Hermes `aws-docs` is documentation-only: enable only `search_documentation`, `read_documentation`, `list_regions`, and `get_regional_availability`. Keep `call_aws`, `run_script`, tasks, presigned URLs, and dynamic skill retrieval disabled.
 - Exa requires both its MCP server and API key. If unavailable, use an approved web-search/extraction equivalent and record the source.
 - A skill file without its required CLI, MCP, authentication, or helper scripts is not a working capability.
 - Use the standalone-Payer guide only for concepts, role boundaries, and general constraints. Before stating any fee, threshold, discount, FitCloud/CUR availability, support scope, or current feature behavior, verify the contract with CSR, the current implementation with COP, and the customer-visible result in FitCloud. Roadmap items are never current capability evidence.

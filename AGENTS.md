@@ -11,7 +11,7 @@ This is a customer technical-ticket context and decision-history workspace, not 
 ## Non-negotiable summary
 
 - Produce customer reply drafts only. Never send email or post Zendesk comments.
-- Customer AWS inspection is read-only through the approved credential broker path.
+- Customer AWS/FitCloud inspection is currently blocked while `aws-customer-account-ops` is under developer repair. Do not invoke an existing copy; follow `에이전트/런타임_상태.md`.
 - Never call customer-account write APIs, change infrastructure, or run `terraform apply`.
 - Never print, copy, or commit credentials, tokens, session values, or secret contents.
 - Until security-team/team-lead approval, commit only de-identified customer context. Use `CUST-NNN`; keep customer names, contacts, Account/Payer IDs, IPs, and CIDRs in gitignored `.private/customer-map.md` only.

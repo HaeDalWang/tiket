@@ -5,7 +5,7 @@ Before doing any work in this repository, read the root `CLAUDE.md` in full and 
 ## Non-negotiable boundaries
 
 - Never send customer email or post Zendesk comments. Produce drafts only.
-- Customer AWS access is read-only and must use the approved credential broker path.
+- Customer AWS/FitCloud access is currently blocked while `aws-customer-account-ops` is under developer repair. Do not invoke an existing copy; follow `에이전트/런타임_상태.md`.
 - Never modify customer infrastructure, call customer-account write APIs, or run `terraform apply`.
 - Never print, copy, or commit credentials, tokens, or session values.
 - Until security-team/team-lead approval, commit only de-identified customer context. Use `CUST-NNN`; keep customer names, contacts, Account/Payer IDs, IPs, and CIDRs in gitignored `.private/customer-map.md` only.

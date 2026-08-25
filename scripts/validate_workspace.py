@@ -23,6 +23,7 @@ REQUIRED_FILES = [
     "에이전트/기능_카탈로그.md",
     "에이전트/설치_검증.md",
     "에이전트/호환성.md",
+    "에이전트/런타임_상태.md",
     "고객/_인덱스.md",
     "회사규정/README.md",
     "회사규정/_라우팅.md",
@@ -59,15 +60,18 @@ CANONICAL_MARKERS = [
     "Use the COC Raw guide only for role and procedure candidates",
     "A card whose review date has passed, is missing, or is `TBD` remains `draft`",
     "The shared TS remote-support PC/account procedure recorded in the Raw notes is retired",
+    "aws-customer-account-ops` is temporarily blocked",
+    "Hermes `aws-docs` is documentation-only",
 ]
 
 ENTRYPOINT_MARKERS = {
-    "AGENTS.md": ["CLAUDE.md", "FitCloud", "회사규정/_라우팅.md", "연계/README.md"],
+    "AGENTS.md": ["CLAUDE.md", "FitCloud", "회사규정/_라우팅.md", "연계/README.md", "에이전트/런타임_상태.md"],
     ".kiro/steering/00-repository-rules.md": [
         "CLAUDE.md",
         "FitCloud",
         "회사규정/_라우팅.md",
         "연계/README.md",
+        "에이전트/런타임_상태.md",
     ],
 }
 
@@ -458,6 +462,24 @@ def main() -> int:
         for marker in markers:
             if marker not in content:
                 fail(errors, f"{relative} missing entrypoint marker: {marker}")
+
+    runtime_status = read_text("에이전트/런타임_상태.md", errors)
+    for marker in [
+        "`customer-aws-readonly` | blocked",
+        "`fitcloud-billing` | blocked",
+        "mcp-proxy-for-aws@1.6.4",
+        "aws___search_documentation",
+        "aws___read_documentation",
+        "aws___list_regions",
+        "aws___get_regional_availability",
+        "aws___call_aws",
+        "aws___run_script",
+        "aws___get_tasks",
+        "aws___get_presigned_url",
+        "aws___retrieve_skill",
+    ]:
+        if marker not in runtime_status:
+            fail(errors, f"runtime capability status missing marker: {marker}")
 
     for relative in FRONTMATTER_FILES:
         content = read_text(relative, errors)
