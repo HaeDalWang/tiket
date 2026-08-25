@@ -62,6 +62,8 @@ CANONICAL_MARKERS = [
     "The shared TS remote-support PC/account procedure recorded in the Raw notes is retired",
     "aws-customer-account-ops` is temporarily blocked",
     "Hermes `aws-docs` is documentation-only",
+    "Hermes Exa uses the official hosted MCP anonymously",
+    "web_search_exa` and `web_fetch_exa` only",
 ]
 
 ENTRYPOINT_MARKERS = {
@@ -477,6 +479,12 @@ def main() -> int:
         "aws___get_tasks",
         "aws___get_presigned_url",
         "aws___retrieve_skill",
+        "https://mcp.exa.ai/mcp",
+        "web_search_exa",
+        "web_fetch_exa",
+        "agent_run",
+        "web_search_advanced_exa",
+        "anonymous",
     ]:
         if marker not in runtime_status:
             fail(errors, f"runtime capability status missing marker: {marker}")
