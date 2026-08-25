@@ -1,6 +1,6 @@
 ---
 id: POC-YYYYMMDD-NNN
-ticket: "고객/<customer>/티켓/YYYY-MM-DD_주제.md"
+ticket: "고객/<customer-ref>/티켓/YYYY-MM-DD_주제.md"
 status: requested
 requested_at: YYYY-MM-DD
 requested_by: baeseungdo
@@ -12,7 +12,7 @@ target_branch: ""
 
 ## Customer question
 
-<!-- Preserve the customer-facing question in Korean. -->
+<!-- Preserve the customer-facing question in Korean after de-identification. Do not include real customer names, contacts, Account/Payer IDs, IPs, or CIDRs. -->
 
 ## Decision this PoC must support
 

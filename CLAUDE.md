@@ -22,7 +22,7 @@ The durable asset is the path of judgment, not a cleaned-up final answer. Preser
 
 ## 3. Mandatory task-start sequence
 
-1. Read `고객/<customer>/프로필.md` first. It defines access, contract, communication, and prohibited-action boundaries.
+1. Read `고객/<customer-ref>/프로필.md` first. It defines access, contract, communication, and prohibited-action boundaries.
 2. If the profile does not exist, create it from `템플릿/고객_프로필.md` and obtain enough human-reviewed context before drafting a reply.
 3. Route applicable company policy through `회사규정/_라우팅.md`; read only matching cards and source sections.
 4. Search the customer's `티켓/` directory for similar cases. A prior reply is precedent for tone and history, not proof of a technical fact.
@@ -34,7 +34,7 @@ The durable asset is the path of judgment, not a cleaned-up final answer. Preser
 
 | Stage | Work | Artifact |
 |---|---|---|
-| Intake | Preserve the original request and restate the actual question | `고객/<customer>/티켓/YYYY-MM-DD_주제.md` |
+| Intake | Preserve the original request and restate the actual question | `고객/<customer-ref>/티켓/YYYY-MM-DD_주제.md` |
 | Investigate | Read-only observation, policy routing, and official-source verification | Same file, `조사·실측` |
 | PoC if needed | Send a bounded request to a separate project and verify the returned result | `연계/` request/result + ticket link |
 | Decide | Separate confirmed facts, hypotheses, unknowns, trade-offs, and limits | Same file, `판단` |
@@ -72,6 +72,9 @@ At the boundary, stop and hand the work to a human. Do not search for a workarou
 - AWS MCP documentation search and customer-account execution are separate capabilities. An AWS MCP connection does not imply broker-enforced read-only access.
 - Exa requires both its MCP server and API key. If unavailable, use an approved web-search/extraction equivalent and record the source.
 - A skill file without its required CLI, MCP, authentication, or helper scripts is not a working capability.
+- Use the standalone-Payer guide only for concepts, role boundaries, and general constraints. Before stating any fee, threshold, discount, FitCloud/CUR availability, support scope, or current feature behavior, verify the contract with CSR, the current implementation with COP, and the customer-visible result in FitCloud. Roadmap items are never current capability evidence.
+- Use the COC Raw guide only for role and procedure candidates. Verify the current owner through FitCloud and the current on-call roster for every routing decision. Do not commit names, phone numbers, email addresses, or copied rosters; tracked files contain only `CONTACT-NNN`, the source reference, and verification time. A newer date inside the rolling Raw note does not by itself make that section active.
+- The shared TS remote-support PC/account procedure recorded in the Raw notes is retired. Do not use the shared account, retrieve credentials by DM, or access that PC. Actual device removal, account disablement, credential revocation, and access-log review are human IT tasks; do not claim decommission completion without verified evidence.
 
 ## 7. Evidence and reply rules
 
@@ -109,22 +112,38 @@ This includes API keys, tokens, session credentials, `.aws/credentials`, private
 
 Secret metadata may be inspected when needed, but do not read or expose the value. Record only that a setting exists and, when safe, its location.
 
-### C. Never record subjective judgments about people
+### C. Commit only de-identified customer context until security approval
+
+Until the security team or team lead explicitly approves a broader private-GitHub scope, do not commit customer names, personal contacts, AWS Account IDs, Payer IDs, IP addresses, CIDRs, credentials, or equivalent customer security information.
+
+- Use non-identifying references such as `CUST-001` in tracked paths and frontmatter.
+- Keep the real customer/contact/reference mapping only in `.private/customer-map.md`, which is gitignored.
+- Store only sanitized technical context needed to understand and answer the ticket.
+- Sanitize original ticket text before commit; preserve the unsanitized source only in an approved system.
+- Security-team/team-lead approval is required before widening this boundary.
+
+### D. Never record subjective judgments about people
 
 Record only identity and role, observed dated communication behavior, a practical response strategy, source, and last verification date. Do not record personality, intelligence, intent, or moral judgments. When a short name or title is ambiguous, mark identity `unknown`; do not infer.
 
-### D. Never base an irreversible action on unverified evidence
+### E. Never base an irreversible action on unverified evidence
 
 Deletion, replacement, production cutover, restore, and other irreversible or hard-to-reverse actions require live evidence and a human-controlled execution process. Without that evidence, provide verification steps only.
 
 ## 9. Company policy retrieval
 
 - Do not load all PDFs, images, and policy text into context.
+- A Raw inbox document is not authoritative by default. Until its owner, current version, and effective date are verified, treat it and every derived card as `draft` or reference material only.
 - Search `회사규정/_라우팅.md`, then read matching cards, then inspect the relevant extracted section or source page.
 - OCR is a discovery aid, not authoritative evidence for a load-bearing clause; verify the original page.
 - Record applied policy IDs, source locations, effective dates, and review dates in the ticket.
 - If active policies conflict or applicability is unknown, escalate instead of inventing precedence.
 - Preserve superseded documents for historical interpretation and mark their status explicitly.
+- A card may become `active` only after a human verifies the source owner, current version, effective date/applicability, approver, and approval date. Draft cards may identify questions and evidence candidates but must not create a customer commitment or authorize execution.
+- A card whose review date has passed, is missing, or is `TBD` remains `draft`. Prior approval does not prove current validity; an authorized owner must confirm the current version and set a new review date before activation.
+- Once the FitCloud MSP standard-terms card is `active`, treat those standard terms as the default contract baseline unless the customer profile records an exception, separate SLA, SOW, addendum, or non-applicability. The customer-specific document overrides the baseline for its scope.
+- For disputes, damages, termination, legal retention, or another legally consequential interpretation, verify the actual contract with CSR/legal even when the standard baseline has no recorded exception.
+- For retention and deletion, apply this precedence only after verification: law/legal obligation → customer-specific contract/SLA/SOW → active standard terms → active Offboarding guide. If sources conflict or the legal basis is unknown, do not choose a period, delete data, or retain it indefinitely; stop and obtain legal/human determination.
 
 ## 10. PoC cross-project handoff
 
@@ -149,7 +168,7 @@ Use `연계/README.md` when a separate project must test a hypothesis.
 
 ## 12. File rules
 
-Ticket path: `고객/<customer>/티켓/YYYY-MM-DD_주제.md`
+Ticket path: `고객/<customer-ref>/티켓/YYYY-MM-DD_주제.md`
 
 Required body order: `요청 내용` → `조사·실측` → `판단` → `회신` → `고객 회신` → `다음 액션` → `변경 이력`.
 

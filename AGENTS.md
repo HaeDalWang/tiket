@@ -14,6 +14,7 @@ This is a customer technical-ticket context and decision-history workspace, not 
 - Customer AWS inspection is read-only through the approved credential broker path.
 - Never call customer-account write APIs, change infrastructure, or run `terraform apply`.
 - Never print, copy, or commit credentials, tokens, session values, or secret contents.
+- Until security-team/team-lead approval, commit only de-identified customer context. Use `CUST-NNN`; keep customer names, contacts, Account/Payer IDs, IPs, and CIDRs in gitignored `.private/customer-map.md` only.
 - Customer-facing cost figures must be FitCloud-curated. Never show or mention raw AWS billing figures.
 - Read `고객/<customer>/프로필.md` before working on that customer.
 - Route company policy through `회사규정/_라우팅.md`.

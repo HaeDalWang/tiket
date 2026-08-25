@@ -1,6 +1,6 @@
 ---
 id: POC-YYYYMMDD-NNN
-ticket: "고객/<customer>/티켓/YYYY-MM-DD_주제.md"
+ticket: "고객/<customer-ref>/티켓/YYYY-MM-DD_주제.md"
 status: completed # blocked | completed
 completed_at: YYYY-MM-DD
 repository: ""

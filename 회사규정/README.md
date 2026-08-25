@@ -22,8 +22,10 @@ This directory stores routing metadata and normalized policy cards. It must not 
 
 - `_라우팅.md`: compact policy index loaded for routing.
 - `카드/`: short, reviewed policy cards with scope and source pointers.
+- `sources.json`: machine-readable Source ID, normalized filename, line count, and SHA-256 manifest.
 - `추출본/`: searchable OCR/text derivatives when approved for this repository.
 - `원본_목록.md`: source inventory and storage pointer.
+- `검토_대기.md`: human decisions required before draft cards can become active.
 - `원본/`: local source documents; gitignored by default. Use an approved document system or Git LFS only after an explicit decision.
 
 ## Ingestion rules
@@ -32,3 +34,13 @@ This directory stores routing metadata and normalized policy cards. It must not 
 - Every card must identify source document, page/section, effective date, status, and review date.
 - A superseded policy remains in history but must be marked `superseded` and linked to its replacement.
 - Never store credentials or unrestricted raw operational logs with policy sources.
+- Do not copy personal rosters, phone numbers, customer account examples, or operational access hints from Raw notes into tracked cards.
+
+## Draft activation
+
+1. Resolve the relevant item in `검토_대기.md`.
+2. Confirm the source owner, current version, and applicability.
+3. Re-read every cited source range.
+4. Record `source_owner`, `source_version`, `effective_from`/`applicability`, `authority_verified_at`, `approved_by`, and `approved_at`.
+5. Change the card from `draft` to `active` only after those fields are verified.
+6. Re-run `python3 scripts/validate_workspace.py`.
