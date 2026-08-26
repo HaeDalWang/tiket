@@ -1,34 +1,13 @@
 # Agent Entry Point
 
-## Required first action
+Before work, read the root `CLAUDE.md`, then classify the task through `에이전트/작업_라우터.md`. Load only the routed modules.
 
-Read the root `CLAUDE.md` in full before doing any work. It is the canonical contract for workflow, authority, evidence, policy routing, PoC handoff, relationship context, reply style, and file rules.
+## Hard stops
 
-## Repository purpose
-
-This is a customer technical-ticket context and decision-history workspace, not the infrastructure code repository. Actual Terraform and implementation code live under `~/salt/<customer>/` or another designated project.
-
-## Non-negotiable summary
-
-- Produce customer reply drafts only. Never send email or post Zendesk comments.
-- Customer AWS/FitCloud inspection is currently blocked while `aws-customer-account-ops` is under developer repair. Do not invoke an existing copy; follow `에이전트/런타임_상태.md`.
+- Draft customer replies only; never send email or post Zendesk comments.
+- Customer AWS/FitCloud inspection is blocked while `aws-customer-account-ops` is under repair; follow `에이전트/런타임_상태.md`.
 - Never call customer-account write APIs, change infrastructure, or run `terraform apply`.
-- Never print, copy, or commit credentials, tokens, session values, or secret contents.
-- Until security-team/team-lead approval, commit only de-identified customer context. Use `CUST-NNN`; keep customer names, contacts, Account/Payer IDs, IPs, and CIDRs in gitignored `.private/customer-map.md` only.
-- Customer-facing cost figures must be FitCloud-curated. Never show or mention raw AWS billing figures.
-- Read `고객/<customer>/프로필.md` before working on that customer.
-- Route company policy through `회사규정/_라우팅.md`.
-- Select tools through `에이전트/기능_카탈로그.md`; do not invent unavailable product-specific commands.
-- Preserve history by appending dated corrections and replies; never overwrite prior judgment.
-- Use `연계/README.md` for cross-project PoC work and verify returned evidence before drafting.
-- Record people through identity, observed behavior, and response strategy only; never subjective judgment.
+- Never expose or commit secrets. Commit only de-identified customer context; keep real mappings in gitignored `.private/customer-map.md`.
+- Customer-facing cost figures must be FitCloud-curated; never mention raw AWS billing figures.
 
-## Environment
-
-- Run shell commands non-interactively and disable pagers. Stop on an unexpected prompt.
-- Quote paths containing Korean text, spaces, or parentheses.
-- Do not access `~/Documents/obsidian/`; macOS TCC blocks it. Ask the user to copy only required material to an approved location.
-
-## Language
-
-Write agent-facing rules and metadata in English. Write human-facing ticket content and customer reply drafts in Korean. Preserve technical identifiers and source quotations exactly.
+For customer work, read the target profile, route policy through `회사규정/_라우팅.md`, and select tools through `에이전트/기능_카탈로그.md`. Use `연계/README.md` only when a PoC is required. Human-facing ticket content and reply drafts are Korean; agent rules and metadata are English where practical.

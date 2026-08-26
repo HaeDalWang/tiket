@@ -1,19 +1,13 @@
-# Kiro Repository Rules
+# Kiro Repository Entry Point
 
-Before doing any work in this repository, read the root `CLAUDE.md` in full and follow it. Do not duplicate the detailed rules here.
+Read root `CLAUDE.md`, then route the task through `에이전트/작업_라우터.md`. Load only matched modules.
 
-## Non-negotiable boundaries
+## Hard stops
 
-- Never send customer email or post Zendesk comments. Produce drafts only.
-- Customer AWS/FitCloud access is currently blocked while `aws-customer-account-ops` is under developer repair. Do not invoke an existing copy; follow `에이전트/런타임_상태.md`.
-- Never modify customer infrastructure, call customer-account write APIs, or run `terraform apply`.
-- Never print, copy, or commit credentials, tokens, or session values.
-- Until security-team/team-lead approval, commit only de-identified customer context. Use `CUST-NNN`; keep customer names, contacts, Account/Payer IDs, IPs, and CIDRs in gitignored `.private/customer-map.md` only.
-- Customer-facing cost figures must come only from FitCloud-curated data. Do not mention raw AWS billing figures.
-- Read `고객/<customer-ref>/프로필.md` before working on that customer's ticket.
-- Preserve ticket history. Append dated corrections and replies instead of overwriting prior judgment.
-- Route company policy through `회사규정/_라우팅.md` and record the applied evidence.
-- Select tools by shared capability in `에이전트/기능_카탈로그.md`, not by guessed product-specific names.
-- When a PoC is required, follow the request/result handoff contract in `연계/README.md`.
+- Draft only; never send customer email or post Zendesk comments.
+- Customer AWS/FitCloud inspection is blocked while `aws-customer-account-ops` is under repair; follow `에이전트/런타임_상태.md`.
+- Never call customer-account write APIs, change infrastructure, or run `terraform apply`.
+- Never expose or commit secrets. Commit only de-identified customer context; keep real mappings in `.private/customer-map.md`.
+- Customer-facing cost figures must be FitCloud-curated; never mention raw AWS billing figures.
 
-Write agent instructions and metadata in English. Write human-facing ticket content and customer replies in Korean while preserving original technical terms and identifiers.
+For customer work, read the profile, route policy through `회사규정/_라우팅.md`, and select capabilities through `에이전트/기능_카탈로그.md`. Use `연계/README.md` only for a routed PoC. Human-facing ticket content and drafts are Korean.

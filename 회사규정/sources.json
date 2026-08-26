@@ -109,6 +109,12 @@
       "filename_nfc": "COP Q&ACMP팀에 질문하신 내용 정리.txt",
       "lines": 96,
       "sha256": "f777d44a47e579a4c8235e6c672b08f4bc4676ecd061d16c5af6d10fe03c4a14"
+    },
+    {
+      "id": "SRC-COST-ESC-001",
+      "path": "회사규정/추출본/SRC-COST-ESC-001-cost-inquiry-csr-handoff.md",
+      "lines": 41,
+      "sha256": "d71860a14dcc83ab67e8bd555ec5c49be5cf79e01698a03ac048fe7e45a75b6e"
     }
   ]
 }
