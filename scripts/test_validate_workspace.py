@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -44,6 +45,105 @@ class WorkspaceValidatorTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn(marker, result.stdout)
 
+    def git(self, *args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args],
+            cwd=cwd or self.repo,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    def init_git(self, activate_hooks: bool = True) -> None:
+        """Give the fixture a real repository so the Git-dependent gates run."""
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "test@invalid")
+        self.git("config", "user.name", "test")
+        if activate_hooks:
+            self.git("config", "core.hooksPath", ".githooks")
+
+    def test_non_ascii_repository_path_is_rejected(self) -> None:
+        (self.repo / "templates/한글파일.md").write_text("x\n", encoding="utf-8")
+        self.assert_rejected(
+            self.run_validator(),
+            "non-ASCII repository path",
+        )
+
+    def test_raw_inbox_source_filenames_stay_exempt(self) -> None:
+        """Raw company sources keep their original names without failing the gate."""
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("ASCII-only paths:", result.stdout)
+
+    def test_push_guard_must_be_activated(self) -> None:
+        self.init_git(activate_hooks=False)
+        self.assert_rejected(
+            self.run_validator(),
+            "push guard is inactive; run: git config core.hooksPath .githooks",
+        )
+
+    def test_operational_customer_data_must_be_gitignored(self) -> None:
+        self.replace_once(".gitignore", "customers/CUST-*", "# rule removed")
+        self.init_git()
+        self.assert_rejected(
+            self.run_validator(),
+            ".gitignore missing safety rule: customers/CUST-*",
+        )
+
+    def test_tracked_operational_customer_file_is_rejected(self) -> None:
+        customer = self.repo / "customers/CUST-901"
+        customer.mkdir()
+        shutil.copy2(self.repo / "templates/customer-profile.md", customer / "profile.md")
+        self.init_git()
+        self.git("add", "-f", "customers/CUST-901/profile.md")
+        self.assert_rejected(
+            self.run_validator(),
+            "operational customer files are tracked",
+        )
+
+    def test_push_guard_blocks_operational_customer_data(self) -> None:
+        upstream = Path(self.tempdir.name) / "upstream.git"
+        self.git("init", "-q", "--bare", str(upstream), cwd=Path(self.tempdir.name))
+        self.init_git()
+        self.git("remote", "add", "upstream", str(upstream))
+        customer = self.repo / "customers/CUST-901"
+        customer.mkdir()
+        shutil.copy2(self.repo / "templates/customer-profile.md", customer / "profile.md")
+        self.git("add", "-A")
+        self.git("add", "-f", "customers/CUST-901/profile.md")
+        self.git("commit", "-q", "-m", "customer work")
+
+        blocked = subprocess.run(
+            ["git", "push", "upstream", "main"],
+            cwd=self.repo,
+            check=False,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "TIKET_ALLOW_UPSTREAM_PUSH": "1"},
+        )
+        self.assertNotEqual(blocked.returncode, 0, blocked.stderr)
+        self.assertIn("customers/CUST-901/profile.md", blocked.stderr)
+
+    def test_push_guard_blocks_shared_repository_without_explicit_override(self) -> None:
+        upstream = Path(self.tempdir.name) / "upstream2.git"
+        self.git("init", "-q", "--bare", str(upstream), cwd=Path(self.tempdir.name))
+        self.init_git()
+        self.git("remote", "add", "upstream", str(upstream))
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "framework only")
+
+        env = {key: value for key, value in os.environ.items() if key != "TIKET_ALLOW_UPSTREAM_PUSH"}
+        blocked = subprocess.run(
+            ["git", "push", "upstream", "main"],
+            cwd=self.repo,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertNotEqual(blocked.returncode, 0, blocked.stderr)
+        self.assertIn("개인 운영 저장소가 아직 없습니다", blocked.stderr)
+
     def test_framework_candidate_passes(self) -> None:
         result = self.run_validator("--framework")
         self.assertEqual(result.returncode, 0, result.stdout)
@@ -56,19 +156,19 @@ class WorkspaceValidatorTests(unittest.TestCase):
         )
 
     def test_framework_rejects_operational_customer_directory(self) -> None:
-        customer = self.repo / "고객/CUST-901"
+        customer = self.repo / "customers/CUST-901"
         customer.mkdir()
-        shutil.copy2(self.repo / "템플릿/고객_프로필.md", customer / "프로필.md")
+        shutil.copy2(self.repo / "templates/customer-profile.md", customer / "profile.md")
         self.assert_rejected(
             self.run_validator("--framework"),
             "framework candidate contains workspace-owned customer directories",
         )
 
     def test_framework_rejects_operational_customer_index_entries(self) -> None:
-        index = self.repo / "고객/_인덱스.md"
+        index = self.repo / "customers/_index.md"
         index.write_text(
             index.read_text(encoding="utf-8")
-            + "\n| CUST-901 | 고객/CUST-901/프로필.md | 1 | 2026-08-31 | local |\n",
+            + "\n| CUST-901 | customers/CUST-901/profile.md | 1 | 2026-08-31 | local |\n",
             encoding="utf-8",
         )
         self.assert_rejected(
@@ -78,7 +178,7 @@ class WorkspaceValidatorTests(unittest.TestCase):
 
     def test_example_rejects_operational_ticket_reference(self) -> None:
         self.replace_once(
-            "예시/CUST-900/티켓/2026-08-28_Kiro-management-account-change/current.md",
+            "examples/CUST-900/tickets/2026-08-28_Kiro-management-account-change/current.md",
             "TICKET-EXAMPLE-002",
             "TICKET-LOCAL-002",
         )
@@ -89,7 +189,7 @@ class WorkspaceValidatorTests(unittest.TestCase):
 
     def test_invalid_account_reference_is_rejected(self) -> None:
         self.replace_once(
-            "예시/CUST-900/티켓/2026-08-28_Kiro-management-account-change/current.md",
+            "examples/CUST-900/tickets/2026-08-28_Kiro-management-account-change/current.md",
             "account_ref: ACCOUNT-001",
             "account_ref: customer-prod",
         )
@@ -97,7 +197,7 @@ class WorkspaceValidatorTests(unittest.TestCase):
 
     def test_completed_ticket_requires_sent_artifact(self) -> None:
         self.replace_once(
-            "예시/CUST-900/티켓/2026-08-28_Kiro-management-account-change/history.md",
+            "examples/CUST-900/tickets/2026-08-28_Kiro-management-account-change/history.md",
             "## 비식별 실제 발송본",
             "## 발송 artifact 누락",
         )
@@ -108,7 +208,7 @@ class WorkspaceValidatorTests(unittest.TestCase):
 
     def test_history_date_must_cover_latest_event(self) -> None:
         self.replace_once(
-            "예시/CUST-900/티켓/2026-08-28_Kiro-management-account-change/history.md",
+            "examples/CUST-900/tickets/2026-08-28_Kiro-management-account-change/history.md",
             "updated_at: 2026-08-31",
             "updated_at: 2026-08-28",
         )
@@ -119,7 +219,7 @@ class WorkspaceValidatorTests(unittest.TestCase):
 
     def test_reply_style_contract_markers_are_required(self) -> None:
         self.replace_once(
-            "플레이북/회신_스타일.md",
+            "playbooks/reply-style.md",
             "실제로 해결하려는 문제와 잠재된 우려",
             "표면 질문",
         )
@@ -130,7 +230,7 @@ class WorkspaceValidatorTests(unittest.TestCase):
 
     def test_technical_detailed_example_structure_is_required(self) -> None:
         self.replace_once(
-            "예시/회신_스타일/technical-detailed.md",
+            "examples/reply-styles/technical-detailed.md",
             "## 할인 방식별 판단 기준",
             "## 비교",
         )
@@ -141,7 +241,7 @@ class WorkspaceValidatorTests(unittest.TestCase):
 
     def test_example_personal_signature_is_rejected(self) -> None:
         self.replace_once(
-            "예시/CUST-900/티켓/2026-08-28_Kiro-management-account-change/current.md",
+            "examples/CUST-900/tickets/2026-08-28_Kiro-management-account-change/current.md",
             "[작성자 소개]",
             "가상회사 홍길동입니다.",
         )

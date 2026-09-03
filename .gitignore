@@ -24,9 +24,15 @@ config.local.*
 
 # 로컬 민감 자료와 대용량 회사 규정 원본
 .private/
-회사규정/원본/
-회사규정/수신함/*
-!회사규정/수신함/README.md
+policy/raw/
+policy/inbox/*
+!policy/inbox/README.md
+
+# 고객 운영 자료 — Alpha 단계에서는 로컬에만 보관한다.
+# 개인 private 운영 저장소가 회사 승인으로 생성되기 전까지 Git 추적하지 않는다.
+# 전환 절차는 DISTRIBUTION.md "Alpha remote 모델"을 따른다.
+customers/CUST-*
+!customers/_index.md
 
 # 에이전트별 로컬 설정·작업공간
 .claude/settings.local.json

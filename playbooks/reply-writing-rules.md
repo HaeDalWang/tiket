@@ -1,0 +1,56 @@
+# Customer Reply Rules
+
+## Two-layer contract
+
+1. Normalize the answer with the latest Decision Packet v2 JSON in `templates/decision-packet.md`.
+2. Select Decision/evidence/action IDs and presentation with the latest Reply Brief v2 JSON in `templates/reply-brief.md`.
+3. Select a named presentation profile from `playbooks/reply-style.md`.
+4. Draft customer prose from those artifacts.
+
+Agents must converge on question, decisions, certainty, facts, unknowns, policies, and next actions. They may vary wording, order, examples, and length. Validate meaning, not sentence shape.
+
+The Reply Brief must not rewrite a technical conclusion in free text. Customer prose may use only the selected `D/F/H/U/A/I/P` IDs and must preserve their certainty and prohibitions.
+
+Read the ticket's compact `current.md` and selected `evidence.md` records. Do not load `history.md` merely to draft the latest reply. Reuse applicable confirmed evidence instead of repeating the same web/document fetch in each agent revision.
+
+## Language and tone
+
+- Write customer-facing drafts in formal Korean.
+- Use `저희` for first-person plural.
+- Lead with the answer or current status, then supporting detail.
+- Default to `seungdo-contextual` (승도 스타일). Its length follows the ticket's complexity and the explanation needed for customer understanding. Select `technical-detailed` (상세 설명형) when a systematic reference-style response is required.
+- Before drafting, identify the customer's likely desired resolution behind the literal question. Include relevant confirmed conditions, risks, and next steps that prevent predictable follow-up questions, without inventing unstated facts or dumping unrelated possibilities.
+- Before asking a clarification question, explain why the missing information blocks the answer.
+- Offer choices when possible and state when an undecided answer is acceptable.
+- Preserve technical terms, commands, product names, and identifiers exactly.
+
+## Separation
+
+- Internal investigation stays outside the customer reply code block.
+- The customer reply contains no secret location, credential material, raw command dump, unsupported assertion, or prohibited raw AWS billing information.
+- A draft is not a sent reply. Only a human sends email or posts to Zendesk.
+
+## Evidence and certainty
+
+- Apply `playbooks/evidence-verification.md` before drafting.
+- Convert internal evidence into concise customer-safe reasoning.
+- Do not use a prior reply as proof of a technical fact.
+- If the answer is unknown, state what must be checked or ask for the missing information.
+
+## Relationship context
+
+- Use the preferred salutation and response format recorded in the customer profile.
+- Do not infer identity from a short name when the alias map is ambiguous.
+- Adapt detail level from observed communication behavior, not a personality judgment.
+
+Style precedence is: technical accuracy/security/active policy → customer profile → team rules → operator-local preference → agent default.
+
+## Final checks
+
+- The reply answers the actual question.
+- Every definitive statement is supported by a `confirmed` Decision Packet item.
+- No hypothesis was promoted and no blocking unknown was omitted.
+- The next action and owner are clear.
+- The reply does not imply that an unexecuted change or unverified PoC has completed.
+- Cost figures follow the FitCloud-only rule.
+- The code block can be copied without exposing internal notes.

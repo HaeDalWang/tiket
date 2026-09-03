@@ -1,0 +1,19 @@
+# 고객사 인덱스
+
+고객 대응을 시작할 때 대상 고객의 `profile.md`를 먼저 읽는다.
+
+| Customer reference | 프로필 | 진행 중 티켓 | 최종 검토일 | 비고 |
+|---|---|---:|---|---|
+| 없음 | - | 0 | - | 공통 upstream에는 운영 고객 기록을 두지 않음 |
+
+비식별 참조 표본은 `examples/README.md`에서 찾는다. 각 workspace는 자기 private `origin`에서만 이 인덱스와 `customers/CUST-NNN/` 운영 기록을 추가한다.
+
+## 신규 고객 등록
+
+1. 비식별 reference를 발급한다. 예: `CUST-001`.
+2. 실제 고객사명과 reference 연결은 `.private/customer-map.md`에만 기록한다.
+3. `templates/customer-profile.md`를 `customers/<customer-ref>/profile.md`로 복사한다.
+4. 비식별화된 계약·접근·비용·발송 경계를 먼저 채운다.
+5. 담당자는 `CONTACT-NNN`으로 기록하고 실제 이름·연락처는 commit하지 않는다.
+6. 이 인덱스에 customer reference를 추가한다.
+7. 프로필을 검토하기 전에는 해당 고객 티켓 회신 초안을 작성하지 않는다.

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -14,51 +15,56 @@ from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+HOOKS_DIR = ".githooks"
+# Raw company sources keep the filenames they arrive with. They are never tracked
+# and the validator compares them through NFC normalization.
+ASCII_PATH_EXEMPT_PREFIXES = ("policy/inbox/",)
 
 REQUIRED_FILES = [
     "CLAUDE.md",
     "AGENTS.md",
     "README.md",
     ".gitignore",
+    ".githooks/pre-push",
     ".kiro/steering/00-repository-rules.md",
-    "에이전트/기능_카탈로그.md",
-    "에이전트/설치_검증.md",
-    "에이전트/호환성.md",
-    "에이전트/런타임_상태.md",
-    "에이전트/작업_라우터.md",
-    "고객/_인덱스.md",
-    "예시/README.md",
-    "예시/회신_스타일/technical-detailed.md",
+    "agents/capability-catalog.md",
+    "agents/install-verification.md",
+    "agents/compatibility.md",
+    "agents/runtime-status.md",
+    "agents/task-router.md",
+    "customers/_index.md",
+    "examples/README.md",
+    "examples/reply-styles/technical-detailed.md",
     "scripts/check_public_sources.py",
     "scripts/export_framework_snapshot.py",
     "scripts/test_aws_customer_skill.py",
     "scripts/test_export_framework_snapshot.py",
     "scripts/test_validate_workspace.py",
-    "회사규정/README.md",
-    "회사규정/_라우팅.md",
-    "회사규정/카드/_템플릿.md",
-    "회사규정/원본_목록.md",
-    "회사규정/sources.json",
-    "회사규정/수신함/README.md",
-    "회사규정/검토_대기.md",
-    "플레이북/근거_검증.md",
-    "플레이북/회신_작성_규칙.md",
-    "플레이북/회신_스타일.md",
-    "플레이북/인프라_작업_프로세스.md",
-    "플레이북/함정/README.md",
-    "플레이북/함정/fitcloud-계정별-비용-분리불가.md",
-    "플레이북/함정/aurora-스냅샷-암호화-불가.md",
-    "플레이북/함정/ec2-ri-sp-플랫폼과-마켓플레이스-요금.md",
-    "연계/README.md",
-    "연계/템플릿/PoC_의뢰서.md",
-    "연계/템플릿/PoC_결과서.md",
-    "템플릿/고객_인덱스.md",
-    "템플릿/고객_프로필.md",
-    "템플릿/티켓.md",
-    "템플릿/티켓_근거.md",
-    "템플릿/티켓_이력.md",
-    "템플릿/결정_패킷.md",
-    "템플릿/회신_브리프.md",
+    "policy/README.md",
+    "policy/_routing.md",
+    "policy/cards/_template.md",
+    "policy/source-inventory.md",
+    "policy/sources.json",
+    "policy/inbox/README.md",
+    "policy/pending-review.md",
+    "playbooks/evidence-verification.md",
+    "playbooks/reply-writing-rules.md",
+    "playbooks/reply-style.md",
+    "playbooks/infra-change-process.md",
+    "playbooks/pitfalls/README.md",
+    "playbooks/pitfalls/fitcloud-per-account-cost-not-separable.md",
+    "playbooks/pitfalls/aurora-snapshot-encryption-unsupported.md",
+    "playbooks/pitfalls/ec2-ri-sp-platform-and-marketplace-pricing.md",
+    "handoff/README.md",
+    "handoff/templates/poc-request.md",
+    "handoff/templates/poc-result.md",
+    "templates/customer-index.md",
+    "templates/customer-profile.md",
+    "templates/ticket.md",
+    "templates/ticket-evidence.md",
+    "templates/ticket-history.md",
+    "templates/decision-packet.md",
+    "templates/reply-brief.md",
 ]
 
 CANONICAL_MARKERS = [
@@ -69,14 +75,14 @@ CANONICAL_MARKERS = [
     "Commit only de-identified customer context",
     "Customer-facing cost figures must be FitCloud-curated",
     "Exa queries must contain public, de-identified technical terms only",
-    "에이전트/작업_라우터.md",
-    "고객/<customer-ref>/프로필.md",
-    "회사규정/_라우팅.md",
-    "에이전트/기능_카탈로그.md",
+    "agents/task-router.md",
+    "customers/<customer-ref>/profile.md",
+    "policy/_routing.md",
+    "agents/capability-catalog.md",
     "confirmed`, `hypothesis`, and `unknown",
     "appending dated corrections",
     "never subjective judgment",
-    "연계/README.md",
+    "handoff/README.md",
     "Do not commit, push, merge",
 ]
 
@@ -147,24 +153,24 @@ CURRENT_TICKET_CHAR_BUDGET = 14_000
 EVIDENCE_TICKET_CHAR_BUDGET = 10_000
 
 ROUTED_MODULE_MARKERS = {
-    "회사규정/_라우팅.md": ["A `draft` card is a cited review artifact"],
-    "플레이북/근거_검증.md": [
+    "policy/_routing.md": ["A `draft` card is a cited review artifact"],
+    "playbooks/evidence-verification.md": [
         "confirmed",
         "hypothesis",
         "unknown",
         "Treat the reply as a draft until a human reviews and sends it",
     ],
-    "플레이북/회신_작성_규칙.md": [
+    "playbooks/reply-writing-rules.md": [
         "Only a human sends email or posts to Zendesk",
         "Validate meaning, not sentence shape",
         "Every definitive statement is supported by a `confirmed` Decision Packet item",
     ],
-    "플레이북/인프라_작업_프로세스.md": ["Stop at the human gate", "Design rollback first"],
-    "연계/README.md": ["Verify the returned repository, branch, commit, command, and output"],
-    "템플릿/티켓.md": ["Never rewrite prior judgment"],
-    "템플릿/고객_프로필.md": ["Never record personality judgments"],
-    "템플릿/티켓_근거.md": ["reuse_policy: current-ticket", "Re-fetch only"],
-    "템플릿/티켓_이력.md": ["load_policy: on-demand", "Append only"],
+    "playbooks/infra-change-process.md": ["Stop at the human gate", "Design rollback first"],
+    "handoff/README.md": ["Verify the returned repository, branch, commit, command, and output"],
+    "templates/ticket.md": ["Never rewrite prior judgment"],
+    "templates/customer-profile.md": ["Never record personality judgments"],
+    "templates/ticket-evidence.md": ["reuse_policy: current-ticket", "Re-fetch only"],
+    "templates/ticket-history.md": ["load_policy: on-demand", "Append only"],
 }
 
 ALWAYS_ON_CHAR_BUDGETS = {
@@ -175,25 +181,25 @@ ALWAYS_ON_CHAR_BUDGETS = {
 AGENTS_CLAUDE_COMBINED_CHAR_BUDGET = 6_000
 
 ENTRYPOINT_MARKERS = {
-    "AGENTS.md": ["CLAUDE.md", "에이전트/작업_라우터.md", "FitCloud", "회사규정/_라우팅.md", "연계/README.md", "에이전트/런타임_상태.md"],
+    "AGENTS.md": ["CLAUDE.md", "agents/task-router.md", "FitCloud", "policy/_routing.md", "handoff/README.md", "agents/runtime-status.md"],
     ".kiro/steering/00-repository-rules.md": [
         "CLAUDE.md",
-        "에이전트/작업_라우터.md",
+        "agents/task-router.md",
         "FitCloud",
-        "회사규정/_라우팅.md",
-        "연계/README.md",
-        "에이전트/런타임_상태.md",
+        "policy/_routing.md",
+        "handoff/README.md",
+        "agents/runtime-status.md",
     ],
 }
 
 FRONTMATTER_FILES = [
-    "회사규정/카드/_템플릿.md",
-    "연계/템플릿/PoC_의뢰서.md",
-    "연계/템플릿/PoC_결과서.md",
-    "템플릿/고객_프로필.md",
-    "템플릿/티켓.md",
-    "템플릿/티켓_근거.md",
-    "템플릿/티켓_이력.md",
+    "policy/cards/_template.md",
+    "handoff/templates/poc-request.md",
+    "handoff/templates/poc-result.md",
+    "templates/customer-profile.md",
+    "templates/ticket.md",
+    "templates/ticket-evidence.md",
+    "templates/ticket-history.md",
 ]
 
 SECRET_PATTERNS = {
@@ -222,8 +228,8 @@ EXAMPLE_PERSONAL_SIGNATURE_PATTERN = re.compile(
     r"(?m)^(?!\[작성자 소개\]$)[가-힣A-Za-z0-9().&-]{2,30}\s+[가-힣]{2,4}입니다\.?$"
 )
 DEIDENTIFICATION_SCAN_EXCLUSIONS = {
-    "회사규정/sources.json",
-    "회사규정/원본_목록.md",
+    "policy/sources.json",
+    "policy/source-inventory.md",
 }
 
 
@@ -306,18 +312,18 @@ def iter_text_files() -> list[Path]:
 
 
 def validate_policy_cards(errors: list[str]) -> tuple[int, int]:
-    inventory = read_text("회사규정/원본_목록.md", errors)
-    routing = read_text("회사규정/_라우팅.md", errors)
-    manifest_content = read_text("회사규정/sources.json", errors)
+    inventory = read_text("policy/source-inventory.md", errors)
+    routing = read_text("policy/_routing.md", errors)
+    manifest_content = read_text("policy/sources.json", errors)
     try:
         manifest = json.loads(manifest_content)
     except json.JSONDecodeError as exc:
-        fail(errors, f"invalid 회사규정/sources.json: {exc}")
+        fail(errors, f"invalid policy/sources.json: {exc}")
         manifest = {"sources": []}
     source_entries = manifest.get("sources", [])
     sources_by_id = {entry.get("id"): entry for entry in source_entries if entry.get("id")}
     if len(sources_by_id) != len(source_entries):
-        fail(errors, "duplicate or missing source id in 회사규정/sources.json")
+        fail(errors, "duplicate or missing source id in policy/sources.json")
     known_sources = set(sources_by_id)
     inventory_sources = set(re.findall(r"`(SRC-[A-Z0-9-]+)`", inventory))
     if inventory_sources != known_sources:
@@ -328,8 +334,8 @@ def validate_policy_cards(errors: list[str]) -> tuple[int, int]:
         if missing_from_manifest:
             fail(errors, f"source missing from manifest: {', '.join(missing_from_manifest)}")
     seen_ids: dict[str, str] = {}
-    cards = sorted((ROOT / "회사규정/카드").glob("*.md"))
-    cards = [card for card in cards if card.name != "_템플릿.md"]
+    cards = sorted((ROOT / "policy/cards").glob("*.md"))
+    cards = [card for card in cards if card.name != "_template.md"]
 
     for card in cards:
         relative = str(card.relative_to(ROOT))
@@ -439,13 +445,13 @@ def validate_policy_cards(errors: list[str]) -> tuple[int, int]:
             if pattern.search(content):
                 fail(errors, f"possible {label} copied into tracked policy card: {relative}")
 
-    for reference in re.findall(r"`(카드/[^`]+\.md)`", routing):
-        if not (ROOT / "회사규정" / reference).is_file():
+    for reference in re.findall(r"`(cards/[^`]+\.md)`", routing):
+        if not (ROOT / "policy" / reference).is_file():
             fail(errors, f"routing references missing card: {reference}")
 
     if (ROOT / ".git").is_dir():
         result = subprocess.run(
-            ["git", "-c", "core.quotePath=false", "ls-files", "회사규정/수신함"],
+            ["git", "-c", "core.quotePath=false", "ls-files", "policy/inbox"],
             cwd=ROOT,
             check=False,
             capture_output=True,
@@ -454,12 +460,12 @@ def validate_policy_cards(errors: list[str]) -> tuple[int, int]:
         tracked_raw = [
             line
             for line in result.stdout.splitlines()
-            if line and line != "회사규정/수신함/README.md"
+            if line and line != "policy/inbox/README.md"
         ]
         if tracked_raw:
             fail(errors, f"raw inbox files are tracked: {', '.join(tracked_raw)}")
 
-    raw_dir = ROOT / "회사규정/수신함"
+    raw_dir = ROOT / "policy/inbox"
     raw_files = sorted(raw_dir.glob("*.txt"))
     raw_by_nfc = {
         unicodedata.normalize("NFC", path.name): path
@@ -885,14 +891,14 @@ def validate_decision_packet_ticket(
 
 
 def validate_deidentified_repository(errors: list[str]) -> None:
-    customer_root = ROOT / "고객"
+    customer_root = ROOT / "customers"
     for path in customer_root.iterdir():
         if path.is_dir() and not re.fullmatch(r"CUST-\d{3,}", path.name):
-            fail(errors, f"customer directory is not de-identified: 고객/{path.name}")
+            fail(errors, f"customer directory is not de-identified: customers/{path.name}")
         if path.is_dir():
-            profile = path / "프로필.md"
+            profile = path / "profile.md"
             if not profile.is_file():
-                fail(errors, f"customer profile missing: 고객/{path.name}/프로필.md")
+                fail(errors, f"customer profile missing: customers/{path.name}/profile.md")
                 continue
             profile_content = profile.read_text(encoding="utf-8")
             if not re.search(
@@ -900,29 +906,29 @@ def validate_deidentified_repository(errors: list[str]) -> None:
                 profile_content,
                 re.MULTILINE,
             ):
-                fail(errors, f"customer profile missing standard contract baseline: 고객/{path.name}/프로필.md")
+                fail(errors, f"customer profile missing standard contract baseline: customers/{path.name}/profile.md")
             if not re.search(r"^contract_exceptions:\s*.*$", profile_content, re.MULTILINE):
-                fail(errors, f"customer profile missing contract_exceptions: 고객/{path.name}/프로필.md")
+                fail(errors, f"customer profile missing contract_exceptions: customers/{path.name}/profile.md")
             payer_match = re.search(
                 r"^payer_model:\s*(standalone|integrated|other|unknown)(?:\s+#.*)?$",
                 profile_content,
                 re.MULTILINE,
             )
             if not payer_match:
-                fail(errors, f"customer profile missing valid payer_model: 고객/{path.name}/프로필.md")
+                fail(errors, f"customer profile missing valid payer_model: customers/{path.name}/profile.md")
             if not re.search(r"^payer_verified_at:\s*.*$", profile_content, re.MULTILINE):
-                fail(errors, f"customer profile missing payer_verified_at: 고객/{path.name}/프로필.md")
+                fail(errors, f"customer profile missing payer_verified_at: customers/{path.name}/profile.md")
             coc_owner_match = re.search(
                 r"^coc_owner_ref:\s*(?:\"\"|CONTACT-\d{3,})(?:\s+#.*)?$",
                 profile_content,
                 re.MULTILINE,
             )
             if not coc_owner_match:
-                fail(errors, f"customer profile missing valid coc_owner_ref: 고객/{path.name}/프로필.md")
+                fail(errors, f"customer profile missing valid coc_owner_ref: customers/{path.name}/profile.md")
             if not re.search(r"^coc_roster_verified_at:\s*.*$", profile_content, re.MULTILINE):
-                fail(errors, f"customer profile missing coc_roster_verified_at: 고객/{path.name}/프로필.md")
+                fail(errors, f"customer profile missing coc_roster_verified_at: customers/{path.name}/profile.md")
 
-            ticket_dir = path / "티켓"
+            ticket_dir = path / "tickets"
             if ticket_dir.is_dir():
                 legacy_tickets = sorted(ticket_dir.glob("*.md"))
                 for legacy in legacy_tickets:
@@ -988,7 +994,7 @@ def validate_deidentified_repository(errors: list[str]) -> None:
                         evidence_content=evidence_content,
                     )
 
-    profile_template = read_text("템플릿/고객_프로필.md", errors)
+    profile_template = read_text("templates/customer-profile.md", errors)
     if "contract_baseline: SRC-FITCLOUD-TERMS-001" not in profile_template:
         fail(errors, "customer profile template missing standard contract baseline")
     if "contract_exceptions:" not in profile_template:
@@ -1012,7 +1018,7 @@ def validate_deidentified_repository(errors: list[str]) -> None:
     for marker in ["법정 보존 근거 reference:", "고객별 보존/삭제 예외:", "법무 확인일:"]:
         if marker not in profile_template:
             fail(errors, f"customer profile template missing retention field: {marker}")
-    ticket_template = read_text("템플릿/티켓.md", errors)
+    ticket_template = read_text("templates/ticket.md", errors)
     for marker in [
         "decision_packet_version: 2",
         "current_revision:",
@@ -1023,11 +1029,11 @@ def validate_deidentified_repository(errors: list[str]) -> None:
     ]:
         if marker not in ticket_template:
             fail(errors, f"current ticket template missing marker: {marker}")
-    evidence_template = read_text("템플릿/티켓_근거.md", errors)
+    evidence_template = read_text("templates/ticket-evidence.md", errors)
     for marker in ["reuse_policy: current-ticket", "[F1]", "[H1]", "[U1]", "reverify_when:"]:
         if marker not in evidence_template:
             fail(errors, f"ticket evidence template missing marker: {marker}")
-    history_template = read_text("템플릿/티켓_이력.md", errors)
+    history_template = read_text("templates/ticket-history.md", errors)
     for marker in ["load_policy: on-demand", "Append only", "실제 발송/고객 회신"]:
         if marker not in history_template:
             fail(errors, f"ticket history template missing marker: {marker}")
@@ -1037,20 +1043,20 @@ def validate_deidentified_repository(errors: list[str]) -> None:
         "active standard terms → active Offboarding guide"
     )
     for relative in [
-        "회사규정/카드/POLICY-DATA-001-contract-termination-data-lifecycle.md",
-        "회사규정/카드/POLICY-OFFBOARD-001-customer-approval-and-data-handling.md",
+        "policy/cards/POLICY-DATA-001-contract-termination-data-lifecycle.md",
+        "policy/cards/POLICY-OFFBOARD-001-customer-approval-and-data-handling.md",
     ]:
         if retention_hierarchy not in read_text(relative, errors):
             fail(errors, f"retention hierarchy missing from {relative}")
 
-    payer_card = read_text("회사규정/카드/POLICY-PAYER-001-standalone-payer-scope.md", errors)
+    payer_card = read_text("policy/cards/POLICY-PAYER-001-standalone-payer-scope.md", errors)
     for marker in ["CSR", "COP", "FitCloud"]:
         if marker not in payer_card:
             fail(errors, f"standalone-Payer verification rule missing: {marker}")
 
     for path in iter_text_files():
         relative = str(path.relative_to(ROOT))
-        if relative.startswith("회사규정/수신함/") or relative in DEIDENTIFICATION_SCAN_EXCLUSIONS:
+        if relative.startswith("policy/inbox/") or relative in DEIDENTIFICATION_SCAN_EXCLUSIONS:
             continue
         content = path.read_text(encoding="utf-8")
         for label, pattern in TRACKED_CUSTOMER_IDENTIFIER_PATTERNS.items():
@@ -1071,14 +1077,14 @@ def validate_deidentified_repository(errors: list[str]) -> None:
 
 
 def validate_example_repository(errors: list[str]) -> None:
-    example_root = ROOT / "예시"
+    example_root = ROOT / "examples"
     for customer_dir in sorted(path for path in example_root.iterdir() if path.is_dir()):
-        if customer_dir.name == "회신_스타일":
+        if customer_dir.name == "reply-styles":
             continue
         if not re.fullmatch(r"CUST-\d{3,}", customer_dir.name):
             fail(errors, f"example customer directory is not de-identified: {customer_dir.relative_to(ROOT)}")
             continue
-        profile = customer_dir / "프로필.md"
+        profile = customer_dir / "profile.md"
         if not profile.is_file():
             fail(errors, f"example customer profile missing: {profile.relative_to(ROOT)}")
             continue
@@ -1096,7 +1102,7 @@ def validate_example_repository(errors: list[str]) -> None:
         ):
             fail(errors, f"example profile customer_ref mismatch: {profile.relative_to(ROOT)}")
 
-        ticket_root = customer_dir / "티켓"
+        ticket_root = customer_dir / "tickets"
         if not ticket_root.is_dir():
             continue
         for case_dir in sorted(path for path in ticket_root.iterdir() if path.is_dir()):
@@ -1170,6 +1176,122 @@ def validate_example_repository(errors: list[str]) -> None:
                 fail(errors, f"example contains an operational ticket reference: {example_file.relative_to(ROOT)}")
 
 
+def validate_ascii_paths(errors: list[str]) -> int:
+    """Repository paths must be ASCII.
+
+    Non-ASCII path names are compared as exact strings by this validator, by
+    .gitignore, by grep patterns in agent instructions, and by git plumbing. The
+    git/filesystem boundary gives no Unicode normalization guarantee, so the same
+    file can appear under NFC on one machine and NFD on another: lookups still
+    succeed on macOS while directory enumeration silently stops matching. Raw
+    company sources under the inbox are exempt because their names come from the
+    source system, they are never tracked, and they are NFC-normalized on read.
+    """
+    checked = 0
+    offenders: list[str] = []
+
+    def offending(relative: str) -> bool:
+        if relative.startswith(ASCII_PATH_EXEMPT_PREFIXES):
+            return False
+        return not relative.isascii()
+
+    if (ROOT / ".git").is_dir():
+        listed = subprocess.run(
+            ["git", "-c", "core.quotePath=false", "ls-files", "-z"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        for relative in listed.stdout.split("\0"):
+            if not relative:
+                continue
+            checked += 1
+            if offending(relative):
+                offenders.append(relative)
+
+    for path in ROOT.rglob("*"):
+        relative_parts = path.relative_to(ROOT).parts
+        if not relative_parts or relative_parts[0] in {".git", ".private"}:
+            continue
+        relative = path.relative_to(ROOT).as_posix()
+        checked += 1
+        if offending(relative):
+            offenders.append(relative)
+
+    for relative in sorted(set(offenders)):
+        fail(
+            errors,
+            "non-ASCII repository path; rename it and update every reference: "
+            f"{relative}",
+        )
+    return checked
+
+
+def validate_local_only_customer_data(errors: list[str]) -> None:
+    """Alpha remote model: operational customer data stays local and unpushed.
+
+    No personal operational remote is approved yet, so the only configured remote is
+    the shared framework repository. Two independent guards must be in place:
+    the ignore rule (ships with the repository) and the pre-push hook (needs one
+    local activation command).
+    """
+    if not (ROOT / ".git").is_dir():
+        return
+
+    probe = "customers/CUST-001/profile.md"
+    ignored = subprocess.run(
+        ["git", "check-ignore", "-q", probe],
+        cwd=ROOT,
+        check=False,
+    )
+    if ignored.returncode != 0:
+        fail(errors, f"operational customer data is not gitignored: {probe}")
+
+    tracked = subprocess.run(
+        ["git", "-c", "core.quotePath=false", "ls-files", "customers/"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    unexpected = [
+        line
+        for line in tracked.stdout.splitlines()
+        if line and line != "customers/_index.md"
+    ]
+    if unexpected:
+        fail(
+            errors,
+            "operational customer files are tracked and would reach the shared "
+            f"repository: {', '.join(unexpected)}",
+        )
+
+    configured = subprocess.run(
+        ["git", "config", "--get", "core.hooksPath"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    hooks_path = configured.stdout.strip()
+    if hooks_path != HOOKS_DIR:
+        fail(
+            errors,
+            "push guard is inactive; run: git config core.hooksPath "
+            f"{HOOKS_DIR}",
+        )
+        return
+    hook = ROOT / HOOKS_DIR / "pre-push"
+    if not hook.is_file():
+        fail(errors, f"push guard hook is missing: {HOOKS_DIR}/pre-push")
+    elif not os.access(hook, os.X_OK):
+        fail(
+            errors,
+            f"push guard hook is not executable; run: chmod +x {HOOKS_DIR}/pre-push",
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -1202,35 +1324,35 @@ def main() -> int:
         if marker not in canonical:
             fail(errors, f"CLAUDE.md missing canonical marker: {marker}")
 
-    task_router = read_text("에이전트/작업_라우터.md", errors)
+    task_router = read_text("agents/task-router.md", errors)
     for marker in TASK_ROUTER_MARKERS:
         if marker not in task_router:
             fail(errors, f"task router missing marker: {marker}")
 
-    shared_environment = read_text("에이전트/공통_에이전트_환경.md", errors)
-    validate_markdown_sources("에이전트/공통_에이전트_환경.md", shared_environment, errors)
+    shared_environment = read_text("agents/shared-agent-environment.md", errors)
+    validate_markdown_sources("agents/shared-agent-environment.md", shared_environment, errors)
 
     for relative, markers in {
-        "템플릿/결정_패킷.md": DECISION_PACKET_TEMPLATE_MARKERS,
-        "템플릿/회신_브리프.md": REPLY_BRIEF_TEMPLATE_MARKERS,
+        "templates/decision-packet.md": DECISION_PACKET_TEMPLATE_MARKERS,
+        "templates/reply-brief.md": REPLY_BRIEF_TEMPLATE_MARKERS,
     }.items():
         content = read_text(relative, errors)
         for marker in markers:
             if marker not in content:
                 fail(errors, f"{relative} missing semantic contract marker: {marker}")
 
-    reply_style = read_text("플레이북/회신_스타일.md", errors)
+    reply_style = read_text("playbooks/reply-style.md", errors)
     for marker in REPLY_STYLE_MARKERS:
         if marker not in reply_style:
             fail(errors, f"reply style contract missing marker: {marker}")
 
-    technical_example = read_text("예시/회신_스타일/technical-detailed.md", errors)
+    technical_example = read_text("examples/reply-styles/technical-detailed.md", errors)
     for marker in TECHNICAL_DETAILED_EXAMPLE_MARKERS:
         if marker not in technical_example:
             fail(errors, f"technical-detailed example missing marker: {marker}")
     for source_relative in [
-        "예시/CUST-900/티켓/2026-08-26_Rocky-Linux-RI-SP/current.md",
-        "예시/CUST-900/티켓/2026-08-26_Rocky-Linux-RI-SP/evidence.md",
+        "examples/CUST-900/tickets/2026-08-26_Rocky-Linux-RI-SP/current.md",
+        "examples/CUST-900/tickets/2026-08-26_Rocky-Linux-RI-SP/evidence.md",
     ]:
         if not (ROOT / source_relative).is_file():
             fail(errors, f"technical-detailed example source missing: {source_relative}")
@@ -1247,7 +1369,7 @@ def main() -> int:
             if marker not in content:
                 fail(errors, f"{relative} missing entrypoint marker: {marker}")
 
-    runtime_status = read_text("에이전트/런타임_상태.md", errors)
+    runtime_status = read_text("agents/runtime-status.md", errors)
     for marker in [
         "`customer-aws-readonly` | enabled",
         "`fitcloud-billing` | enabled",
@@ -1281,14 +1403,18 @@ def main() -> int:
     gitignore = read_text(".gitignore", errors)
     for marker in [
         ".private/",
-        "회사규정/원본/",
-        "회사규정/수신함/*",
-        "!회사규정/수신함/README.md",
+        "policy/raw/",
+        "policy/inbox/*",
+        "!policy/inbox/README.md",
+        "customers/CUST-*",
         "terraform.tfstate",
         "*.kubeconfig",
     ]:
         if marker not in gitignore:
             fail(errors, f".gitignore missing safety rule: {marker}")
+
+    validate_local_only_customer_data(errors)
+    ascii_path_count = validate_ascii_paths(errors)
 
     plan_files = sorted(path.name for path in ROOT.glob("계획*.md"))
     if plan_files:
@@ -1305,11 +1431,11 @@ def main() -> int:
     validate_deidentified_repository(errors)
     validate_example_repository(errors)
     if args.framework:
-        customer_dirs = sorted(path.name for path in (ROOT / "고객").iterdir() if path.is_dir())
+        customer_dirs = sorted(path.name for path in (ROOT / "customers").iterdir() if path.is_dir())
         if customer_dirs:
             fail(errors, "framework candidate contains workspace-owned customer directories")
-        customer_index = read_text("고객/_인덱스.md", errors)
-        clean_customer_index = read_text("템플릿/고객_인덱스.md", errors)
+        customer_index = read_text("customers/_index.md", errors)
+        clean_customer_index = read_text("templates/customer-index.md", errors)
         if customer_index != clean_customer_index:
             fail(errors, "framework candidate customer index differs from the clean template")
 
@@ -1327,6 +1453,8 @@ def main() -> int:
         f"{combined_length} / {AGENTS_CLAUDE_COMBINED_CHAR_BUDGET}"
     )
     print("- entrypoints: AGENTS.md, Kiro steering")
+    print("- local-only customer data: gitignored, push guard active")
+    print(f"- ASCII-only paths: {ascii_path_count} checked")
     print(f"- validation mode: {'framework' if args.framework else 'workspace'}")
     print("- templates: frontmatter present")
     print("- shared documentation citation map: consistent")

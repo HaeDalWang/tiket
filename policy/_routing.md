@@ -1,0 +1,30 @@
+# Policy Routing Index
+
+Search this file before drafting a technical reply. Add one row only after a policy card has been reviewed.
+
+| Policy ID | Title | Status | Applies to | Trigger terms | Effective from | Review by | Card |
+|---|---|---|---|---|---|---|---|
+| `POLICY-SEC-001` | Customer security information handling and sharing | draft | customer data, credentials, file sharing, account access | Account ID, Payer ID, IP, CIDR, key, password, token, external share, incident | unknown | TBD | `cards/POLICY-SEC-001-customer-security-information.md` |
+| `POLICY-SUPPORT-001` | Contract-dependent service scope and response targets | draft | support scope, severity, response target, emergency support | SLA, SLT, Critical, 24x7, response time, business hours | 2025-04-02 | TBD | `cards/POLICY-SUPPORT-001-contract-scope-and-response-targets.md` |
+| `POLICY-DATA-001` | Contract termination and customer data lifecycle | draft | termination, transfer, deletion, retention | termination, offboarding, data transfer, delete, access revoke | 2025-04-02 | TBD | `cards/POLICY-DATA-001-contract-termination-data-lifecycle.md` |
+| `GUIDE-ONBOARD-001` | Customer onboarding readiness and handoff | draft | onboarding, baseline, access readiness, handoff | new customer, kickoff, IAM, monitoring, operation start | unknown | TBD | `cards/GUIDE-ONBOARD-001-customer-readiness-and-handoff.md` |
+| `POLICY-OFFBOARD-001` | Customer offboarding approval and data handling | draft | offboarding, migration, access removal, deletion | partner change, CSP migration, archive, retention, production delete | unknown | 2026-05-12 overdue | `cards/POLICY-OFFBOARD-001-customer-approval-and-data-handling.md` |
+| `POLICY-PAYER-001` | Standalone Payer scope and escalation | draft | Payer model, partner link, billing visibility, support | standalone Payer, integrated Payer, FitCloud, CUR, Rebilling | unknown | TBD | `cards/POLICY-PAYER-001-standalone-payer-scope.md` |
+| `POLICY-INCIDENT-001` | COC support eligibility and notification routing | draft | call, alarm, incident, after-hours, ticket routing | COC, 24x7, GuardDuty, PHD, TAM REQ, AWS Case | mixed | TBD | `cards/POLICY-INCIDENT-001-coc-routing.md` |
+| `POLICY-RISK-001` | Internal incident classification and response workflow | draft | incident classification, escalation, post-incident | Critical, High, Medium, Low, postmortem, major risk | unknown | 2026-05-12 overdue | `cards/POLICY-RISK-001-internal-incident-workflow.md` |
+| `GUIDE-ROLE-001` | CSG role routing and handoff | draft | team routing, PoC, platform issue, escalation | SA, TS, MSP, AI, COP, architecture, PoC, Rebilling | unknown | TBD | `cards/GUIDE-ROLE-001-csg-routing-and-handoff.md` |
+| `GUIDE-FITCLOUD-001` | FitCloud cost-data freshness limitations | draft | billing data freshness and delay | FitCloud delay, CUR update, month-end, queue, stale cost | unknown | TBD | `cards/GUIDE-FITCLOUD-001-data-freshness.md` |
+| `POLICY-COST-ESC-001` | Cost inquiry handoff and no-response escalation | active | customer cost inquiry, billing, RI, Savings Plans, discount, invoice | cost, billing, invoice, RI, Reserved Instance, Savings Plans, SP, discount, commitment, 비용, 청구, 할인, 약정 | 2026-08-26 | 2026-11-26 | `cards/POLICY-COST-ESC-001-cost-inquiry-handoff.md` |
+| `POLICY-ACCESS-001` | Employee offboarding and customer-access revocation | draft | employee exit, customer access, ownership handoff | resignation, account disable, VPN revoke, customer data cleanup | unknown | TBD | `cards/POLICY-ACCESS-001-employee-offboarding.md` |
+| `GUIDE-MIGRATION-001` | Migration discovery and PoC decision intake | draft | discovery, assessment, PoC, migration strategy | migration, first meeting, assessment, 6R, rehost, refactor | unknown | TBD | `cards/GUIDE-MIGRATION-001-discovery-and-poc.md` |
+| `POLICY-REMOTE-001` | Retired TS shared remote-support access procedure | retired | remote support, shared account, credential delivery | remote PC, shared account, password/PIN DM | retired | N/A | `cards/POLICY-REMOTE-001-retired-ts-remote-support.md` |
+
+## Routing rules
+
+- Match by meaning, not keyword alone.
+- Read all cards that match a high-risk action, credential handling, billing, personal data, or customer communication.
+- Customer-specific constraints in `customers/<customer-ref>/profile.md` apply in addition to company policy.
+- Repository hard boundaries remain in force even when no policy card matches.
+- Record `policy_ids: []` explicitly in the ticket when a search found no applicable policy.
+- A `draft` card is a cited review artifact, not an approved control. Use it to identify questions and evidence, then obtain human confirmation before treating it as binding.
+- A draft card never weakens the hard boundaries in `CLAUDE.md`.

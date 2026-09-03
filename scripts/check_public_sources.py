@@ -10,8 +10,8 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_DOCUMENTS = [ROOT / "에이전트/공통_에이전트_환경.md"]
-SOURCE_DOCUMENTS.extend(sorted((ROOT / "예시").glob("CUST-*/티켓/*/evidence.md")))
+SOURCE_DOCUMENTS = [ROOT / "agents/shared-agent-environment.md"]
+SOURCE_DOCUMENTS.extend(sorted((ROOT / "examples").glob("CUST-*/tickets/*/evidence.md")))
 SOURCE_LINE = re.compile(r"^\[(\d+)\]\s+(https?://\S+)\s*$", re.MULTILINE)
 FACT_SOURCE_LINE = re.compile(r"^\s*- source:\s+(https?://\S+)\s*$", re.MULTILINE)
 

@@ -1,0 +1,70 @@
+---
+title: 티켓 제목
+customer_ref: CUST-NNN
+account_ref: ""
+date: YYYY-MM-DD
+status: 조사중
+source_ref: TICKET-LOCAL-NNN
+tags: [티켓]
+policy_ids: []
+poc_id: ""
+decision_packet_version: 2
+current_revision: v1
+evidence_file: evidence.md
+history_file: history.md
+---
+
+# 티켓 제목
+
+<!-- Copy this file as customers/<customer-ref>/tickets/YYYY-MM-DD_주제/current.md. This is the compact default read surface. -->
+
+## 요청 내용
+
+### 고객이 실제로 묻는 것
+
+### 비식별 원문
+
+## 현재 상태
+
+- 작업 tier:
+- 최신 evidence 확인일:
+- 최신 실제 발송:
+- 적용 정책:
+- 차단 capability:
+
+## 결정 패킷
+
+<!-- Append the latest Decision Packet v2 JSON from templates/decision-packet.md. Reference F/H/U IDs in evidence.md. -->
+
+## 회신 브리프
+
+<!-- Append the latest Reply Brief v2 JSON from templates/reply-brief.md. -->
+
+## 현재 판단
+
+<!-- Optional short rendering of the latest Packet. It must not introduce new semantics. -->
+
+## 회신
+
+### 현재 초안 v1
+
+```text
+안녕하세요.
+
+감사합니다.
+```
+
+## 고객 회신
+
+- 아직 회신 없음
+
+## 다음 액션
+
+- [ ]
+
+## 파일 연결
+
+- 근거: `evidence.md`
+- 이력: `history.md` — on-demand only
+
+Never rewrite prior judgment, sent replies, customer responses, or superseded drafts. Move them to `history.md` and append dated events there; keep only current state in this file.

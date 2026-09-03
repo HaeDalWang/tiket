@@ -12,15 +12,15 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ROOT_FILES = {".gitignore", "AGENTS.md", "CLAUDE.md", "DISTRIBUTION.md", "README.md", "온보딩.md"}
-UPSTREAM_DIRS = {".kiro/steering", "scripts", "에이전트", "연계", "예시", "템플릿"}
+ROOT_FILES = {".gitignore", "AGENTS.md", "CLAUDE.md", "DISTRIBUTION.md", "README.md", "ONBOARDING.md"}
+UPSTREAM_DIRS = {".githooks", ".kiro/steering", "scripts", "agents", "handoff", "examples", "templates"}
 POLICY_FILES = {
-    "회사규정/README.md",
-    "회사규정/_라우팅.md",
-    "회사규정/검토_대기.md",
-    "회사규정/sources.json",
-    "회사규정/원본_목록.md",
-    "회사규정/수신함/README.md",
+    "policy/README.md",
+    "policy/_routing.md",
+    "policy/pending-review.md",
+    "policy/sources.json",
+    "policy/source-inventory.md",
+    "policy/inbox/README.md",
 }
 
 
@@ -29,7 +29,7 @@ def run(command: list[str], cwd: Path = ROOT) -> subprocess.CompletedProcess[str
 
 
 def registered_excerpts() -> set[str]:
-    payload = json.loads((ROOT / "회사규정/sources.json").read_text(encoding="utf-8"))
+    payload = json.loads((ROOT / "policy/sources.json").read_text(encoding="utf-8"))
     return {entry["path"] for entry in payload["sources"] if "path" in entry}
 
 
@@ -63,16 +63,16 @@ def classification(relative: Path, excerpts: set[str]) -> str:
         return "include"
     if any(text == prefix or text.startswith(f"{prefix}/") for prefix in UPSTREAM_DIRS):
         return "include"
-    if text == "고객/_인덱스.md":
+    if text == "customers/_index.md":
         return "workspace-owned"
-    if text.startswith("플레이북/"):
+    if text.startswith("playbooks/"):
         return "include"
-    if text.startswith("회사규정/카드/"):
+    if text.startswith("policy/cards/"):
         return "include"
-    if text.startswith("고객/CUST-"):
+    if text.startswith("customers/CUST-"):
         return "workspace-owned"
 
-    if text.startswith("회사규정/수신함/") or text.startswith("회사규정/추출본/"):
+    if text.startswith("policy/inbox/") or text.startswith("policy/excerpts/"):
         return "workspace-owned"
     return "unexpected"
 
@@ -110,9 +110,9 @@ def export(destination: Path, init_git: bool) -> int:
         if target.is_symlink() or not stat.S_ISREG(target.lstat().st_mode):
             raise RuntimeError(f"exported path is not a regular file: {relative}")
 
-    clean_customer_index = destination / "고객/_인덱스.md"
+    clean_customer_index = destination / "customers/_index.md"
     clean_customer_index.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(ROOT / "템플릿/고객_인덱스.md", clean_customer_index, follow_symlinks=False)
+    shutil.copy2(ROOT / "templates/customer-index.md", clean_customer_index, follow_symlinks=False)
 
     validation = run(["python3", "scripts/validate_workspace.py", "--framework"], destination)
     if validation.returncode != 0:

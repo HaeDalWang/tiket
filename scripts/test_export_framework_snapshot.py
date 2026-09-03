@@ -29,25 +29,25 @@ class FrameworkExportTests(unittest.TestCase):
             result = self.run_export(destination)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertTrue((destination / ".git").is_dir())
-            self.assertTrue((destination / "예시/CUST-900").is_dir())
-            self.assertFalse(any((destination / "고객").glob("CUST-*")))
+            self.assertTrue((destination / "examples/CUST-900").is_dir())
+            self.assertFalse(any((destination / "customers").glob("CUST-*")))
             self.assertFalse((destination / ".private").exists())
             self.assertFalse(any(path.is_symlink() for path in destination.rglob("*")))
             self.assertEqual(
-                (destination / "고객/_인덱스.md").read_text(encoding="utf-8"),
-                (destination / "템플릿/고객_인덱스.md").read_text(encoding="utf-8"),
+                (destination / "customers/_index.md").read_text(encoding="utf-8"),
+                (destination / "templates/customer-index.md").read_text(encoding="utf-8"),
             )
             inbox_files = sorted(
                 str(path.relative_to(destination))
-                for path in (destination / "회사규정/수신함").rglob("*")
+                for path in (destination / "policy/inbox").rglob("*")
                 if path.is_file()
             )
-            self.assertEqual(inbox_files, ["회사규정/수신함/README.md"])
-            sources = json.loads((destination / "회사규정/sources.json").read_text(encoding="utf-8"))
+            self.assertEqual(inbox_files, ["policy/inbox/README.md"])
+            sources = json.loads((destination / "policy/sources.json").read_text(encoding="utf-8"))
             expected_extracts = sorted(entry["path"] for entry in sources["sources"] if "path" in entry)
             actual_extracts = sorted(
                 str(path.relative_to(destination))
-                for path in (destination / "회사규정/추출본").rglob("*")
+                for path in (destination / "policy/excerpts").rglob("*")
                 if path.is_file()
             )
             self.assertEqual(actual_extracts, expected_extracts)
@@ -69,7 +69,7 @@ class FrameworkExportTests(unittest.TestCase):
                 text=True,
             )
             self.assertIn("DISTRIBUTION.md", staged.stdout)
-            self.assertIn("예시/CUST-900", staged.stdout)
+            self.assertIn("examples/CUST-900", staged.stdout)
 
     def test_export_rejects_nonempty_destination(self) -> None:
         with tempfile.TemporaryDirectory(prefix="tiket-framework-export-test-") as tempdir:

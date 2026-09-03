@@ -6,7 +6,7 @@ This repository stores de-identified customer-ticket context, evidence, decision
 
 - Draft only. Never send email, post Zendesk comments, or represent a draft as sent.
 - Never call customer-account write APIs, change infrastructure, or run `terraform apply`.
-- Customer-account access is read-only and broker-mediated only; confirm capability status in `에이전트/런타임_상태.md` first.
+- Customer-account access is read-only and broker-mediated only; confirm capability status in `agents/runtime-status.md` first.
 - Never print or commit credentials, tokens, session values, private keys, or secret contents.
 - Commit only de-identified customer context until security-team/team-lead approval. Use `CUST-NNN`, `CONTACT-NNN`, and `ACCOUNT-NNN`; keep real mappings only in gitignored `.private/customer-map.md`.
 - Customer-facing cost figures must be FitCloud-curated. Never expose or mention raw AWS billing figures.
@@ -16,10 +16,10 @@ This repository stores de-identified customer-ticket context, evidence, decision
 
 ## Start and route
 
-1. Read `에이전트/작업_라우터.md` and classify the task as `quick`, `standard`, or `high-risk`.
-2. For a customer ticket, read `고객/<customer-ref>/프로필.md` first. If absent, create a de-identified minimum profile from `템플릿/고객_프로필.md` before drafting.
-3. Search `회사규정/_라우팅.md` and load only matching cards. A `draft` card cannot create a commitment or authorize action.
-4. Select capabilities through `에이전트/기능_카탈로그.md`; verify runtime readiness instead of inventing commands.
+1. Read `agents/task-router.md` and classify the task as `quick`, `standard`, or `high-risk`.
+2. For a customer ticket, read `customers/<customer-ref>/profile.md` first. If absent, create a de-identified minimum profile from `templates/customer-profile.md` before drafting.
+3. Search `policy/_routing.md` and load only matching cards. A `draft` card cannot create a commitment or authorize action.
+4. Select capabilities through `agents/capability-catalog.md`; verify runtime readiness instead of inventing commands.
 5. Load only the router-selected evidence, reply, change, PoC, or trap modules. Load a skill only when its direct trigger matches and repository modules do not already provide the procedure.
 
 ## Evidence and records
@@ -29,7 +29,7 @@ This repository stores de-identified customer-ticket context, evidence, decision
 - Preserve ticket history by appending dated corrections, actual sent replies, and customer responses; never overwrite prior judgment.
 - Keep internal reasoning, raw tool output, secrets, prohibited billing data, and private mappings outside the customer-facing reply block.
 - Record people only by operational identity/role, dated observed behavior, and response strategy; never subjective judgment.
-- For PoC work use `연계/README.md` and verify returned repository, commit, commands, output, and limitations before relying on it.
+- For PoC work use `handoff/README.md` and verify returned repository, commit, commands, output, and limitations before relying on it.
 
 ## Language and environment
 
