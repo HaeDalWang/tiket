@@ -12,8 +12,27 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ROOT_FILES = {".gitignore", "AGENTS.md", "CLAUDE.md", "DISTRIBUTION.md", "README.md", "ONBOARDING.md"}
-UPSTREAM_DIRS = {".githooks", ".kiro/steering", "scripts", "agents", "handoff", "examples", "templates"}
+ROOT_FILES = {
+    ".gitignore",
+    ".mcp.json",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "DISTRIBUTION.md",
+    "ONBOARDING.md",
+    "README.md",
+}
+UPSTREAM_DIRS = {
+    ".claude",
+    ".codex",
+    ".githooks",
+    ".kiro/settings",
+    ".kiro/steering",
+    "agents",
+    "examples",
+    "handoff",
+    "scripts",
+    "templates",
+}
 POLICY_FILES = {
     "policy/README.md",
     "policy/_routing.md",

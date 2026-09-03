@@ -26,7 +26,7 @@
 터미널에 그대로 붙여넣으세요.
 
 ```bash
-for t in bash aws jq python3 curl; do printf "%s: %s\n" "$t" "$(command -v $t || echo 없음)"; done
+for t in bash aws jq python3 curl uv; do printf "%s: %s\n" "$t" "$(command -v $t || echo 없음)"; done
 bash -c '(( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3) ))' \
   && echo "bash 버전: 정상" || echo "bash 버전: 오래된 버전"
 ```
@@ -36,8 +36,10 @@ bash -c '(( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >
 `**없음`이 있으면**, macOS 기준으로 이렇게 설치합니다.
 
 ```bash
-brew install bash awscli jq python3
+brew install bash awscli jq python3 uv
 ```
+
+`uv`는 AWS 공식 문서 조회 도구(MCP)를 실행하는 데 필요합니다. 없으면 3번 다음 단계에서 알려줍니다.
 
 ### `bash 버전: 오래된 버전`이 나왔다면
 
@@ -101,6 +103,24 @@ python3 scripts/validate_workspace.py
 **이렇게 나오면 성공** — 첫 줄이 `workspace validation: PASS`
 
 `FAIL`이 나오면 그 아래 줄에 뭐가 빠졌는지 나옵니다. 그대로 복사해서 물어보세요.
+
+---
+
+## 3-1. AWS 문서 조회 도구 확인 (1분)
+
+AI가 AWS 공식 문서를 직접 찾아볼 수 있게 해주는 연결입니다. **설정은 저장소에 이미 들어있어서 따로 만들 필요가 없습니다.** 잘 붙는지만 확인합니다.
+
+```bash
+python3 scripts/verify_mcp_servers.py
+```
+
+**이렇게 나오면 성공** — 마지막 줄이 `mcp readiness: PASS`
+
+- `UNVERIFIED`가 나오고 `uv` 얘기가 있으면 → `brew install uv` 후 다시 실행
+- `UNVERIFIED`가 나오고 연결 얘기가 있으면 → 일시적인 네트워크 문제일 수 있습니다. 잠시 뒤 다시 실행
+- `FAIL`이 나오면 → 그대로 복사해서 물어보세요
+
+> 이건 **문서를 읽기만** 하는 연결입니다. 고객 AWS 계정에는 접근할 수 없게 서버 쪽에서 막혀 있습니다. 고객 계정 조회는 4번에서 따로 설치합니다.
 
 > **여기까지가 저장소를 받는 것만으로 되는 전부입니다.**
 > 3번이 통과해도 **아직 고객 AWS 계정은 못 봅니다.** 그건 4번에서 합니다.

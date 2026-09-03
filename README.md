@@ -13,8 +13,12 @@ ONBOARDING.md        신규 엔지니어 Day 1 경로
 CLAUDE.md            에이전트 상세 규칙 정본(영문)
 AGENTS.md            Codex/Hermes 공용 진입점(영문)
 .kiro/steering/      Kiro 자동 로드 진입점
+.kiro/settings/      Kiro MCP 설정(생성물)
+.mcp.json            Claude Code MCP 설정(생성물)
+.claude/settings.json Claude Code MCP 툴 차단(생성물)
+.codex/config.toml   Codex MCP 설정(생성물)
 .githooks/           고객 자료 유출·오push 차단 hook
-agents/              공통 능력 매핑과 설치 검증
+agents/              공통 능력 매핑, 설치 검증, MCP 정본 manifest
 customers/           고객사 프로필·티켓·관계 컨텍스트
 examples/            공통 upstream의 비식별 재구성 티켓 표본
 policy/              대용량 규정의 라우팅·카드·원본 목록
@@ -23,6 +27,8 @@ handoff/             다른 프로젝트와 PoC 의뢰·결과 handoff
 templates/           신규 고객사·티켓 시작점
 scripts/             저장소 구조 검증 도구
 ```
+
+MCP는 clone으로 함께 전달된다. `agents/environment/mcp-manifest.json`이 유일한 정본이고 호스트별 설정 파일은 `scripts/render_agent_configs.py`가 생성한다. 생성물을 직접 수정하면 validator가 실패로 보고한다. AWS 문서 MCP는 `--read-only`와 `--skip-auth`로 문서 조회만 가능하며, 고객 계정 접근은 브로커 경유 skill만 사용한다.
 
 디렉터리와 파일 이름은 ASCII만 사용한다. 파일 **내용**은 한국어로 쓴다. 경로에 한글을 쓰면 macOS·Linux·Git 사이의 Unicode 정규화 차이로 도구가 같은 파일을 다른 이름으로 인식한다.
 

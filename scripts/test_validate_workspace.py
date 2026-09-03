@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -67,6 +68,89 @@ class WorkspaceValidatorTests(unittest.TestCase):
         self.assert_rejected(
             self.run_validator(),
             "non-ASCII repository path",
+        )
+
+    def read_manifest(self) -> dict:
+        return json.loads(
+            (self.repo / "agents/environment/mcp-manifest.json").read_text(encoding="utf-8")
+        )
+
+    def write_manifest(self, manifest: dict) -> None:
+        (self.repo / "agents/environment/mcp-manifest.json").write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+
+    def test_mcp_host_config_drift_is_rejected(self) -> None:
+        self.replace_once(".kiro/settings/mcp.json", '"--read-only",', "")
+        self.assert_rejected(
+            self.run_validator(),
+            "MCP host configs no longer match the manifest",
+        )
+
+    def test_mcp_proxy_must_keep_its_guard_flags(self) -> None:
+        manifest = self.read_manifest()
+        for server in manifest["servers"]:
+            if server["transport"] == "stdio":
+                server["args"] = [arg for arg in server["args"] if arg != "--read-only"]
+        self.write_manifest(manifest)
+        subprocess.run(
+            ["python3", "scripts/render_agent_configs.py"],
+            cwd=self.repo,
+            check=True,
+            capture_output=True,
+        )
+        self.assert_rejected(
+            self.run_validator(),
+            "missing required guard flag --read-only",
+        )
+
+    def test_mcp_manifest_cannot_allow_a_customer_account_tool(self) -> None:
+        manifest = self.read_manifest()
+        manifest["servers"][0]["allowed_tools"].append("aws___call_aws")
+        manifest["servers"][0]["blocked_tools"].remove("aws___call_aws")
+        self.write_manifest(manifest)
+        subprocess.run(
+            ["python3", "scripts/render_agent_configs.py"],
+            cwd=self.repo,
+            check=True,
+            capture_output=True,
+        )
+        self.assert_rejected(
+            self.run_validator(),
+            "allows a customer-account tool",
+        )
+
+    def test_mcp_manifest_must_cover_routed_capabilities(self) -> None:
+        manifest = self.read_manifest()
+        manifest["servers"] = [
+            server for server in manifest["servers"] if server["capability"] != "current-web-research"
+        ]
+        self.write_manifest(manifest)
+        subprocess.run(
+            ["python3", "scripts/render_agent_configs.py"],
+            cwd=self.repo,
+            check=True,
+            capture_output=True,
+        )
+        self.assert_rejected(
+            self.run_validator(),
+            "does not cover routed capability: current-web-research",
+        )
+
+    def test_mcp_manifest_must_not_require_environment_values(self) -> None:
+        manifest = self.read_manifest()
+        manifest["servers"][0]["required_env"] = ["SOME_API_KEY"]
+        self.write_manifest(manifest)
+        self.assert_rejected(
+            self.run_validator(),
+            "requires environment values in a shared manifest",
+        )
+
+    def test_generated_mcp_host_config_is_required(self) -> None:
+        (self.repo / ".codex/config.toml").unlink()
+        self.assert_rejected(
+            self.run_validator(),
+            "missing required file: .codex/config.toml",
         )
 
     def test_raw_inbox_source_filenames_stay_exempt(self) -> None:

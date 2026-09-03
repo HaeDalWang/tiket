@@ -70,7 +70,7 @@ GitHub의 “Use this template”이나 파일 복사로 시작하면 공통 Git
 
 1. `git config core.hooksPath .githooks`로 push guard를 활성화한다. 이 설정은 clone으로 전파되지 않는다.
 2. `agents/runtime-status.md`에서 blocked capability와 확인 시점을 읽는다.
-3. `agents/install-verification.md`에 따라 사용하는 agent의 Skill·MCP·CLI 준비 상태를 확인한다.
+3. `agents/install-verification.md`에 따라 사용하는 agent의 Skill·MCP·CLI 준비 상태를 확인한다. MCP는 `python3 scripts/verify_mcp_servers.py`로 실제 연결과 tool 경계를 확인한다.
 4. `.private/customer-map.md` 등 로컬 매핑과 `customers/CUST-NNN/`은 로컬에만 생성하고 Git 추적에서 제외됨을 확인한다.
 5. `python3 scripts/validate_workspace.py`와 `git diff --check`를 실행한다. 공통 upstream 배포 담당자는 추가로 `python3 scripts/test_validate_workspace.py`, `python3 scripts/test_export_framework_snapshot.py`, `python3 scripts/validate_workspace.py --framework`, `python3 scripts/check_public_sources.py`를 실행한다.
 6. 비식별 합성 티켓으로 규칙 발견, no-send 경계, capability 선택, 근거·확실성 기록, 회신 스타일 선택을 smoke test한다.
@@ -80,9 +80,10 @@ GitHub의 “Use this template”이나 파일 복사로 시작하면 공통 Git
 ## Alpha scope and known limitations
 
 - 공통 upstream이 보장하는 것은 entry rules, router, capability contract, templates, validator와 비식별 examples의 동일성이다.
-- Skill, MCP, CLI, authentication과 agent별 runtime은 clone만으로 설치되지 않는다. 각 workspace가 `agents/install-verification.md`를 실행하고 unavailable capability를 명시해야 한다.
+- Skill, CLI, authentication과 agent별 runtime은 clone만으로 설치되지 않는다. 각 workspace가 `agents/install-verification.md`를 실행하고 unavailable capability를 명시해야 한다.
+- MCP는 clone으로 전달된다. `agents/environment/mcp-manifest.json`이 정본이고 Kiro·Claude Code·Codex host 설정은 `scripts/render_agent_configs.py`가 생성한다. Hermes는 profile에 저장하므로 같은 manifest로 수동 정렬한다. `uv`는 로컬 전제조건이다.
 - `customer-aws-readonly`와 `fitcloud-billing`은 v1.7.2 기준 enabled다. 각 workspace는 사용 전 `python3 scripts/test_aws_customer_skill.py`를 통과시키고 `agents/runtime-status.md`의 근거 등급(observed / operator-attested)을 확인한다.
-- 현재 project-scoped MCP manifest와 Hook은 없다. 실제 반복 실패 표본과 계측 없이 Hook을 기본 활성화하지 않는다.
+- 현재 project-scoped Hook은 없다. 실제 반복 실패 표본과 계측 없이 Hook을 기본 활성화하지 않는다. project-scoped MCP manifest는 도입되었다.
 - 동료 초대 전 Claude Code, Codex, Hermes, Kiro에 동일한 비식별 합성 티켓을 상세 steering 없이 제공해 no-send, 규칙 발견, 근거 certainty, prohibited claim, 스타일 선택을 비교한다. 미실행 agent는 Alpha 지원 범위에서 `not-verified`로 표시한다.
 - Alpha는 사람 검수 전제의 내부 평가 단계이며, 네 agent의 capability parity나 자율 고객 처리를 보장하지 않는다.
 
@@ -99,8 +100,10 @@ Git-only 업데이트가 충돌 없이 작동하려면 공통 프레임워크와
 - `README.md`
 - `DISTRIBUTION.md`
 - `.gitignore`
+- `.githooks/`
 - `.kiro/steering/`
 - `agents/`
+- MCP 정본 `agents/environment/mcp-manifest.json`과 그로부터 생성되는 `.kiro/settings/mcp.json`, `.mcp.json`, `.claude/settings.json`, `.codex/config.toml`. 생성물은 직접 수정하지 않고 manifest를 고친 뒤 `scripts/render_agent_configs.py`로 다시 생성한다. 개인 MCP 서버는 user-level 설정에 둔다.
 - `templates/`
 - `examples/`의 비식별 재구성 고객 프로필과 티켓 표본
 - 공통 `playbooks/` 전체. `playbooks/pitfalls/`은 standalone proof가 아니라 재검증을 요구하는 shared routing warning이다.

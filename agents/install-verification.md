@@ -103,20 +103,45 @@ Never print:
 - access key, secret key, or session token
 - broker config contents
 
+## Project-scoped MCP readiness
+
+MCP capability ships with the repository. `agents/environment/mcp-manifest.json` is the
+only declaration; `.kiro/settings/mcp.json`, `.mcp.json`, `.claude/settings.json`, and
+`.codex/config.toml` are generated from it. Hermes keeps its configuration in its own
+profile and must be aligned to the same manifest by hand.
+
+```bash
+brew install uv                                  # prerequisite for the AWS proxy
+python3 scripts/render_agent_configs.py --check   # host configs match the manifest
+python3 scripts/verify_mcp_servers.py             # servers reachable and correctly bounded
+```
+
+`verify_mcp_servers.py` exits 0 on PASS, 1 when a boundary is violated or a routed tool is
+missing, and 2 when the check could not run because `uv` is absent or the endpoint is
+unreachable. A transient network failure is not a configuration error; retry before
+concluding. The check redirects AWS configuration to a nonexistent path so it can never
+invoke the customer credential broker.
+
+Never edit a generated host file directly. The validator rejects drift and prints the
+render command. Personal MCP servers belong in user-level configuration
+(`~/.kiro/settings/mcp.json` and equivalents), never in the project files.
+
 ## `aws-official-research` readiness
 
-- Hermes uses the `aws-docs` MCP through pinned `mcp-proxy-for-aws@1.6.4` with `--skip-auth`.
+- Server: pinned `mcp-proxy-for-aws@1.6.4` against the managed AWS MCP endpoint, from `aws/agent-toolkit-for-aws`.
 - Required enabled tools: `aws___search_documentation`, `aws___read_documentation`, `aws___list_regions`, `aws___get_regional_availability`.
-- Required disabled tools: `aws___call_aws`, `aws___run_script`, `aws___get_tasks`, `aws___get_presigned_url`, `aws___retrieve_skill`.
-- Run `hermes mcp test aws-docs` and inspect `hermes tools list` before relying on it.
-- Documentation access never grants customer-account execution. Use no AWS credential with this docs-only MCP configuration.
+- Required disabled tools: `aws___call_aws`, `aws___run_script`, `aws___get_presigned_url`, `aws___get_tasks`, `aws___retrieve_skill`.
+- Two enforcement layers, because neither is sufficient alone:
+  - `--read-only` on the proxy drops every tool not annotated `readOnlyHint=true`. Observed 2026-09-03: 9 tools without the flag, 6 with it; `call_aws`, `run_script`, and `get_presigned_url` are the three dropped.
+  - Host configuration denies the remaining unrouted tools. Codex expresses an exact allow list; Kiro and Claude Code express deny lists, so the proxy flag is what protects against a newly added upstream write tool.
+- `--skip-auth` and no AWS credential. Documentation access never grants customer-account execution.
+- Do not enable the toolkit's full tool catalog or its generic skill packs to satisfy this capability. Generic AWS knowledge does not expand repository authority, and a larger catalog increases selection noise.
 
 ## `current-web-research` readiness
 
-- Hermes uses the official hosted Exa MCP at `https://mcp.exa.ai/mcp` in anonymous rate-limited mode.
+- Server: official hosted Exa MCP at `https://mcp.exa.ai/mcp` in anonymous rate-limited mode. Observed 2026-09-03: `exa-search-server 3.2.1` exposing exactly 2 tools.
 - Required enabled tools: `web_search_exa`, `web_fetch_exa`.
 - Keep `agent_run`, advanced search, people/company categories, enrichment, and personal-profile lookup unavailable for this workflow.
-- Run `hermes mcp test exa` and inspect `hermes tools list` before relying on it.
 - Do not send customer names, contacts, Account/Payer IDs, IPs, CIDRs, confidential ticket text, credentials, or other customer security information to Exa.
 - Do not treat search highlights as sufficient support for a load-bearing claim; fetch and inspect the source page.
 - Anonymous mode needs no API key. If rate limits become insufficient, prefer OAuth and never send an API key through chat.

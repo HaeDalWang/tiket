@@ -15,14 +15,14 @@ This document defines the proposed distribution boundary for project-scoped Skil
 ## Observed baseline
 
 - The repository has no project-scoped Skill directory for any supported agent.
-- The repository has no committed MCP manifest or product-specific MCP adapter.
+- Project-scoped MCP **is** committed: `agents/environment/mcp-manifest.json` declares the capability once and `scripts/render_agent_configs.py` generates the Kiro, Claude Code, and Codex host files. The validator rejects drift. Hermes still needs manual profile alignment because it stores MCP configuration outside the repository.
 - The repository has no Hook configuration or shared Hook implementation.
 - The current Hermes profile has 95 enabled Skills, mixing personal, bundled, and support-related capabilities.
 - The current Hermes profile has no configured Hook.
-- The current Hermes profile exposes only six selected MCP tools: four AWS documentation tools and two Exa research tools.
+- The include-only MCP boundary is six tools: four AWS documentation tools and two Exa research tools.
 - The root entrypoints are already bounded: the validator caps `CLAUDE.md`, `AGENTS.md`, and Kiro steering and enforces selective routing. Kiro also supports conditional steering inclusion when specialized guidance should not load on every interaction.[13]
 
-The present state gives agents consistent rules but does not reproduce actual capability after clone.
+Rules and MCP capability now reproduce after clone. Skills and Hooks do not.
 
 ## Portability boundary
 
@@ -32,15 +32,19 @@ Their automatic project directories differ: Hermes and Codex can discover reposi
 Use this layout:
 
 ```text
-.agents/skills/                 canonical project Skill source
-.claude/skills/                 generated Claude Code copies
-.kiro/skills/                   generated Kiro copies
-agents/환경/mcp-manifest.yaml  secret-free capability manifest
-scripts/agent-environment/      render, install, verify, and Hook scripts
-.claude/settings.json           Claude Hook adapter
-.codex/hooks.json               Codex Hook adapter
-.kiro/hooks/                    Kiro Hook adapters
+.agents/skills/                          canonical project Skill source
+.claude/skills/                          generated Claude Code copies
+.kiro/skills/                            generated Kiro copies
+agents/environment/mcp-manifest.json     secret-free capability manifest (in place)
+scripts/render_agent_configs.py          host MCP config generator (in place)
+scripts/verify_mcp_servers.py            MCP reachability and boundary check (in place)
+scripts/agent-environment/               Skill sync and Hook scripts
+.claude/settings.json                    Claude Hook adapter and MCP tool denial
+.codex/hooks.json                        Codex Hook adapter
+.kiro/hooks/                             Kiro Hook adapters
 ```
+
+Skill directories and Hook adapters are not built yet. The MCP rows exist.
 
 Do not maintain three independent Skill implementations. A deterministic sync script must copy the canonical Skill into product directories and the workspace validator must reject drift. Copies are preferred over Git symlinks so clones remain portable across operating systems and Git configurations.
 
@@ -60,23 +64,27 @@ This is an intentional capability mapping, not a missing shared Skill. A host-sp
 
 ## MCP distribution
 
-MCP is the shared external-capability boundary, but configuration syntax and trust are host-specific. Claude Code supports project-scoped `.mcp.json`; Codex supports project-scoped `.codex/config.toml`; Kiro supports workspace MCP configuration; Hermes stores native MCP configuration in its profile.[10][12][15]
+MCP is the shared external-capability boundary, but configuration syntax and trust are host-specific. Claude Code supports project-scoped `.mcp.json`; Codex supports project-scoped `.codex/config.toml`; Kiro supports workspace MCP configuration at `.kiro/settings/mcp.json`; Hermes stores native MCP configuration in its profile.[10][12][15]
 
-Maintain one secret-free manifest that explicitly declares:
+`agents/environment/mcp-manifest.json` is that one secret-free manifest. It declares:
 
 - capability ID and server name
 - pinned package version or remote URL
 - allowed transport
-- exact include-only tool list
+- exact include-only tool list, and a blocked list with a reason per tool
 - required environment-variable names, never values
 - read/write classification
 - authentication mode
 - smoke test
-- blocked or unavailable state
+- observed evidence, with the date and method
 
-Generate or install host adapters from that manifest. Never commit OAuth tokens, API keys, headers containing credentials, or local callback state.
+JSON rather than YAML because the validator and generator must run on a clean Python install with no third-party parser.
+
+Tool control is not equally expressive across hosts. Codex accepts `enabled_tools`, a true allow list. Kiro and Claude Code accept deny lists only. Relying on per-host denial alone would let a newly added upstream tool appear, so the AWS proxy also runs with `--read-only`, which drops every tool not annotated `readOnlyHint=true`. Enforce at the server first, then deny per host.
 
 The existing six-tool include-only MCP boundary is good. Do not add an entire server tool catalog when a routed capability needs only a small subset. Larger or poorly described MCP tool catalogs increase selection noise; Kiro explicitly warns that very large tool descriptions can affect agent performance.[15]
+
+The AWS toolkit also distributes plugins and generic skill packs. Do not adopt them to satisfy a routed capability. They carry the full tool catalog, including customer-account execution, and generic AWS knowledge does not expand repository authority.
 
 ## Hook portability
 
@@ -135,9 +143,9 @@ Do not claim savings from one successful run. Promote a Hook only after repeated
 
 ## Recommended rollout order
 
-1. Record the existing capability-to-host mapping in a secret-free environment manifest.
-2. Add deterministic cross-host presence and readiness verification; verify `seonbi` for Claude Code and the repository playbook path for the other hosts.
-3. Add the MCP contract to the same manifest and compare it to actual host configuration.
+1. **Done.** Capability-to-host mapping recorded in `agents/environment/mcp-manifest.json`.
+2. Add deterministic cross-host presence and readiness verification for Skills; verify `seonbi` for Claude Code and the repository playbook path for the other hosts.
+3. **Done.** The MCP contract lives in the same manifest, host configs are generated from it, and `scripts/verify_mcp_servers.py` compares the declaration to what the servers actually expose.
 4. Accumulate zero-guidance baseline samples with no Hook and no new ticket workflow Skill.
 5. Promote a new shared Skill only after samples show a repeated procedural gap.
 6. Pilot one silent, metadata-only measurement Hook.

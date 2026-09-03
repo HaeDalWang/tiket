@@ -18,8 +18,8 @@ This document defines required **business capabilities**, not product-specific s
 | `customer-aws-readonly` | Inspect or troubleshoot customer AWS resources | `aws-customer-account-ops` | Same skill | Same skill | Same skill | Read-only enforced server-side by the broker; whitelisted read prefixes only; multi-account work passes the scope gate first |
 | `fitcloud-billing` | Customer cost, invoice, or savings analysis | `fitcloud-api.sh` wrapper | Same wrapper | Same wrapper | Same wrapper | Customer-facing figures stay FitCloud-curated; never surface raw AWS billing output |
 | `answer-quality-gate` | Technical claim, action recommendation, or reply draft | `seonbi` | `playbooks/evidence-verification.md` | Same playbook | Same playbook | Separate verified evidence from recall; hard-stop irreversible action |
-| `aws-official-research` | AWS specification or support boundary | Connected AWS MCP documentation search | `aws-docs` MCP docs-only + local `aws-security` | Not yet standardized | Not yet standardized | Documentation lookup only; no customer-account execution |
-| `current-web-research` | Release, issue, CVE, or current information | Exa MCP | Exa MCP `web_search_exa` + `web_fetch_exa` | Available web/MCP | Available web/MCP | Public de-identified technical queries only; cite fetched source content |
+| `aws-official-research` | AWS specification or support boundary | Project `.mcp.json` `aws-docs` | Same server, Hermes profile | Project `.codex/config.toml` `aws-docs` | Project `.kiro/settings/mcp.json` `aws-docs` | Documentation lookup only; `--read-only` and `--skip-auth`; no customer-account execution |
+| `current-web-research` | Release, issue, CVE, or current information | Project `.mcp.json` `exa` | Same server, Hermes profile | Project `.codex/config.toml` `exa` | Project `.kiro/settings/mcp.json` `exa` | Public de-identified technical queries only; cite fetched source content |
 | `diagramming` | Visualize architecture or procedure | Available artifact/diagram tool | `architecture-diagram` or `excalidraw` | Mermaid/repository template | Available diagram tool | Preserve an editable source artifact and its evidence |
 | `document-extraction` | Ingest PDF, scan, image, or policy material | Available PDF/OCR tools | `ocr-and-documents`/`vision_analyze` | Available OCR tool | Available OCR tool | Extracted text must trace back to source and page |
 | `poc-handoff` | Validation requires a separate project | Worktree/`--add-dir` or separate session | Project/workdir/subagent | Workdir/worktree | Workspace switch | Use `handoff/README.md` as the handoff contract |
@@ -31,6 +31,7 @@ Generic skills such as `aws-core:*` are reference knowledge and do not expand re
 - Use only `customer-aws-readonly` for customer-account inspection.
 - Do not call mutating APIs with prefixes such as `Create`, `Put`, `Update`, `Modify`, `Delete`, `Start`, `Stop`, or `Invoke`.
 - Do not assume an AWS MCP connection inherits the credential broker's read-only enforcement.
+- The project MCP servers are declared in `agents/environment/mcp-manifest.json`. Do not add a server or enable a tool outside that manifest, and do not edit a generated host config by hand.
 - Never use or mention raw AWS billing output from `aws-billing-and-cost-management` in a customer reply.
 - CloudFormation, CDK, and Terraform skills may produce code, plans, and reviews only; never deploy.
 - For Hermes `aws-docs`, allow only `search_documentation`, `read_documentation`, `list_regions`, and `get_regional_availability`. Keep `call_aws`, `run_script`, `get_tasks`, `get_presigned_url`, and `retrieve_skill` disabled.

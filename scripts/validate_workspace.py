@@ -19,6 +19,16 @@ HOOKS_DIR = ".githooks"
 # Raw company sources keep the filenames they arrive with. They are never tracked
 # and the validator compares them through NFC normalization.
 ASCII_PATH_EXEMPT_PREFIXES = ("policy/inbox/",)
+# Guard flags that must stay on the AWS MCP proxy command line. --read-only drops
+# every tool not annotated readOnlyHint=true; --skip-auth keeps the docs-only
+# connection from presenting an AWS credential.
+MCP_REQUIRED_PROXY_FLAGS = ("--read-only", "--skip-auth")
+# Tools that would bypass the broker-mediated read-only customer boundary.
+MCP_FORBIDDEN_TOOLS = (
+    "aws___call_aws",
+    "aws___run_script",
+    "aws___get_presigned_url",
+)
 
 REQUIRED_FILES = [
     "CLAUDE.md",
@@ -27,6 +37,11 @@ REQUIRED_FILES = [
     ".gitignore",
     ".githooks/pre-push",
     ".kiro/steering/00-repository-rules.md",
+    ".kiro/settings/mcp.json",
+    ".mcp.json",
+    ".claude/settings.json",
+    ".codex/config.toml",
+    "agents/environment/mcp-manifest.json",
     "agents/capability-catalog.md",
     "agents/install-verification.md",
     "agents/compatibility.md",
@@ -37,9 +52,11 @@ REQUIRED_FILES = [
     "examples/reply-styles/technical-detailed.md",
     "scripts/check_public_sources.py",
     "scripts/export_framework_snapshot.py",
+    "scripts/render_agent_configs.py",
     "scripts/test_aws_customer_skill.py",
     "scripts/test_export_framework_snapshot.py",
     "scripts/test_validate_workspace.py",
+    "scripts/verify_mcp_servers.py",
     "policy/README.md",
     "policy/_routing.md",
     "policy/cards/_template.md",
@@ -1228,6 +1245,101 @@ def validate_ascii_paths(errors: list[str]) -> int:
     return checked
 
 
+def validate_mcp_contract(errors: list[str]) -> tuple[int, int]:
+    """Project-scoped MCP capability must be declared once and generated for every host.
+
+    The failure this prevents: a capability that works only in the maintainer's
+    personal agent profile while the repository documents it as available. Returns
+    (server count, host file count).
+    """
+    relative = "agents/environment/mcp-manifest.json"
+    raw = read_text(relative, errors)
+    if not raw:
+        return 0, 0
+    try:
+        manifest = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        fail(errors, f"invalid MCP manifest JSON: {relative} ({exc})")
+        return 0, 0
+
+    servers = manifest.get("servers") or []
+    if not servers:
+        fail(errors, f"MCP manifest declares no server: {relative}")
+
+    declared_capabilities: set[str] = set()
+    for server in servers:
+        server_id = server.get("id", "<missing id>")
+        for field in ("id", "capability", "transport", "authentication", "classification"):
+            if not server.get(field):
+                fail(errors, f"MCP server missing {field}: {server_id}")
+        declared_capabilities.add(server.get("capability", ""))
+        if not server.get("allowed_tools"):
+            fail(errors, f"MCP server declares no include-only tool list: {server_id}")
+        if server.get("required_env"):
+            fail(
+                errors,
+                f"MCP server requires environment values in a shared manifest: {server_id}",
+            )
+        overlap = set(server.get("allowed_tools") or []) & set(server.get("blocked_tools") or [])
+        if overlap:
+            fail(
+                errors,
+                f"MCP server lists the same tool as allowed and blocked: {server_id} "
+                f"({', '.join(sorted(overlap))})",
+            )
+        if server.get("transport") == "stdio":
+            if not server.get("pinned_version"):
+                fail(errors, f"MCP stdio server is not version pinned: {server_id}")
+            args = server.get("args") or []
+            for required_flag in MCP_REQUIRED_PROXY_FLAGS:
+                if required_flag not in args:
+                    fail(
+                        errors,
+                        f"MCP stdio server missing required guard flag {required_flag}: {server_id}",
+                    )
+        for tool in MCP_FORBIDDEN_TOOLS:
+            if tool in (server.get("allowed_tools") or []):
+                fail(errors, f"MCP server allows a customer-account tool: {server_id} ({tool})")
+
+    for capability in ("aws-official-research", "current-web-research"):
+        if capability not in declared_capabilities:
+            fail(errors, f"MCP manifest does not cover routed capability: {capability}")
+
+    host_files: list[str] = []
+    for host in manifest.get("hosts") or []:
+        for key in ("config_path", "permissions_path"):
+            path = host.get(key)
+            if path:
+                host_files.append(path)
+    for path in host_files:
+        if not (ROOT / path).is_file():
+            fail(errors, f"generated MCP host config missing: {path}")
+
+    rendered = subprocess.run(
+        ["python3", "scripts/render_agent_configs.py", "--check"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if rendered.returncode != 0:
+        drifted = [
+            line.strip().removeprefix("- out of date: ")
+            for line in rendered.stderr.splitlines()
+            if line.strip().startswith("- out of date: ")
+        ]
+        if drifted:
+            fail(
+                errors,
+                "MCP host configs no longer match the manifest "
+                f"({', '.join(drifted)}); run: python3 scripts/render_agent_configs.py",
+            )
+        else:
+            fail(errors, "cannot verify MCP host configs against the manifest")
+
+    return len(servers), len(host_files)
+
+
 def validate_local_only_customer_data(errors: list[str]) -> None:
     """Alpha remote model: operational customer data stays local and unpushed.
 
@@ -1414,6 +1526,7 @@ def main() -> int:
             fail(errors, f".gitignore missing safety rule: {marker}")
 
     validate_local_only_customer_data(errors)
+    mcp_server_count, mcp_host_count = validate_mcp_contract(errors)
     ascii_path_count = validate_ascii_paths(errors)
 
     plan_files = sorted(path.name for path in ROOT.glob("계획*.md"))
@@ -1454,6 +1567,10 @@ def main() -> int:
     )
     print("- entrypoints: AGENTS.md, Kiro steering")
     print("- local-only customer data: gitignored, push guard active")
+    print(
+        f"- project-scoped MCP: {mcp_server_count} servers, "
+        f"{mcp_host_count} host configs generated from the manifest"
+    )
     print(f"- ASCII-only paths: {ascii_path_count} checked")
     print(f"- validation mode: {'framework' if args.framework else 'workspace'}")
     print("- templates: frontmatter present")
