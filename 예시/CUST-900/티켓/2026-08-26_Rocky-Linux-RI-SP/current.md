@@ -1,10 +1,12 @@
 ---
 title: Rocky Linux EC2의 RI 및 Savings Plans 적용 문의
-customer_ref: CUST-001
+customer_ref: CUST-900
+example_provenance: de-identified-reconstruction
+operational_owner: none
 account_ref: ACCOUNT-001
 date: 2026-08-26
 status: 초안작성
-source_ref: TICKET-LOCAL-001
+source_ref: TICKET-EXAMPLE-001
 tags: [티켓, EC2, Rocky-Linux, Reserved-Instances, Savings-Plans]
 policy_ids: [POLICY-SEC-001, POLICY-PAYER-001, POLICY-COST-ESC-001]
 poc_id: ""
@@ -150,7 +152,7 @@ history_file: history.md
 {
   "version": 2,
   "audience": {"role_ref": "CONTACT-001", "technical_depth": "standard"},
-  "goal": "Rocky Linux 자체는 RI/SP 제외 사유가 아니라는 결론과 개별 instance 확정 조건을 간결히 전달한다",
+  "goal": "Rocky Linux 환경에서도 약정 할인을 사용할 수 있는지 이해하고, 구매 전 어떤 값을 확인해야 안전하게 확정할 수 있는지 안내한다",
   "decision_ids": ["D1", "D2", "D3", "D4", "D5", "D6"],
   "fact_ids": ["F1", "F2", "F3", "F4", "F5"],
   "hypothesis_ids": ["H1"],
@@ -159,6 +161,7 @@ history_file: history.md
   "internal_action_ids": [],
   "prohibited_claim_ids": ["P1", "P2", "P3", "P4", "P5"],
   "presentation": {
+    "profile": "seungdo-contextual",
     "tone": "formal-korean",
     "structure": "conclusion-first",
     "commands": "none"
@@ -187,6 +190,8 @@ history_file: history.md
 
 ```text
 안녕하세요, 부장님.
+
+[작성자 소개]
 
 문의주신 Rocky Linux 인스턴스의 RI 및 Savings Plans 적용 여부를 확인하여 안내드립니다.
 

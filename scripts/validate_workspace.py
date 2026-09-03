@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
@@ -26,6 +27,13 @@ REQUIRED_FILES = [
     "에이전트/런타임_상태.md",
     "에이전트/작업_라우터.md",
     "고객/_인덱스.md",
+    "예시/README.md",
+    "예시/회신_스타일/technical-detailed.md",
+    "scripts/check_public_sources.py",
+    "scripts/export_framework_snapshot.py",
+    "scripts/test_aws_customer_skill.py",
+    "scripts/test_export_framework_snapshot.py",
+    "scripts/test_validate_workspace.py",
     "회사규정/README.md",
     "회사규정/_라우팅.md",
     "회사규정/카드/_템플릿.md",
@@ -35,13 +43,16 @@ REQUIRED_FILES = [
     "회사규정/검토_대기.md",
     "플레이북/근거_검증.md",
     "플레이북/회신_작성_규칙.md",
+    "플레이북/회신_스타일.md",
     "플레이북/인프라_작업_프로세스.md",
     "플레이북/함정/README.md",
     "플레이북/함정/fitcloud-계정별-비용-분리불가.md",
     "플레이북/함정/aurora-스냅샷-암호화-불가.md",
+    "플레이북/함정/ec2-ri-sp-플랫폼과-마켓플레이스-요금.md",
     "연계/README.md",
     "연계/템플릿/PoC_의뢰서.md",
     "연계/템플릿/PoC_결과서.md",
+    "템플릿/고객_인덱스.md",
     "템플릿/고객_프로필.md",
     "템플릿/티켓.md",
     "템플릿/티켓_근거.md",
@@ -53,7 +64,7 @@ REQUIRED_FILES = [
 CANONICAL_MARKERS = [
     "Draft only. Never send email",
     "Never call customer-account write APIs",
-    "aws-customer-account-ops` is temporarily blocked",
+    "Customer-account access is read-only and broker-mediated only",
     "Never print or commit credentials",
     "Commit only de-identified customer context",
     "Customer-facing cost figures must be FitCloud-curated",
@@ -97,6 +108,7 @@ DECISION_PACKET_TEMPLATE_MARKERS = [
 REPLY_BRIEF_TEMPLATE_MARKERS = [
     "Reply Brief v2",
     '"version": 2',
+    '"profile": "seungdo-contextual"',
     '"decision_ids"',
     '"fact_ids"',
     '"hypothesis_ids"',
@@ -105,6 +117,28 @@ REPLY_BRIEF_TEMPLATE_MARKERS = [
     '"prohibited_claim_ids"',
     '"presentation_requirements"',
     "Style precedence",
+    "desired resolution",
+]
+
+REPLY_STYLE_MARKERS = [
+    "`seungdo-contextual`",
+    "`technical-detailed`",
+    "실제로 해결하려는 문제와 잠재된 우려",
+    "추가 왕복 없이",
+    "고정된 줄 수나 문단 수를 두지 않는다",
+    "`ACCOUNT-NNN`",
+    "여러 절차를 한 문장이나 한 줄에 압축하지 않는다",
+]
+
+TECHNICAL_DETAILED_EXAMPLE_MARKERS = [
+    "example_type: presentation-only",
+    "presentation_profile: technical-detailed",
+    "selected_decision_ids: [D1, D2, D3, D4, D5, D6]",
+    "## 결론과 적용 범위",
+    "## 할인 방식별 판단 기준",
+    "## 확인된 사실과 미확정 값",
+    "## 안전한 확인 순서",
+    "## 근거와 재검증",
 ]
 
 DECISION_PACKET_V2_CHAR_BUDGET = 5_000
@@ -184,6 +218,9 @@ TRACKED_CUSTOMER_IDENTIFIER_PATTERNS = {
     ),
     "12-digit account-like value": re.compile(r"(?<![A-Za-z0-9])\d{12}(?![A-Za-z0-9])"),
 }
+EXAMPLE_PERSONAL_SIGNATURE_PATTERN = re.compile(
+    r"(?m)^(?!\[작성자 소개\]$)[가-힣A-Za-z0-9().&-]{2,30}\s+[가-힣]{2,4}입니다\.?$"
+)
 DEIDENTIFICATION_SCAN_EXCLUSIONS = {
     "회사규정/sources.json",
     "회사규정/원본_목록.md",
@@ -192,6 +229,56 @@ DEIDENTIFICATION_SCAN_EXCLUSIONS = {
 
 def fail(errors: list[str], message: str) -> None:
     errors.append(message)
+
+
+def validate_markdown_sources(relative: str, content: str, errors: list[str]) -> None:
+    body, separator, sources = content.partition("## Sources")
+    cited = {int(value) for value in re.findall(r"\[(\d+)\]", body)}
+    listed_values = [
+        int(value)
+        for value in re.findall(r"^\[(\d+)\]\s+https?://", sources, re.MULTILINE)
+    ]
+    listed = set(listed_values)
+    if cited and not separator:
+        fail(errors, f"{relative} cites sources but has no Sources block")
+    if len(listed_values) != len(listed):
+        fail(errors, f"{relative} has duplicate source IDs")
+    if cited - listed:
+        fail(errors, f"{relative} has citations missing from Sources: {sorted(cited - listed)}")
+    if listed - cited:
+        fail(errors, f"{relative} has unused Sources: {sorted(listed - cited)}")
+
+
+def validate_account_references(relative: str, content: str, errors: list[str]) -> None:
+    account_match = re.search(r"^account_ref:\s*(.*?)\s*$", content, re.MULTILINE)
+    if not account_match or not re.fullmatch(r'(?:""|ACCOUNT-\d{3,})', account_match.group(1)):
+        fail(errors, f"{relative} has invalid account_ref")
+    target_match = re.search(r"^target_account_ref:\s*(.*?)\s*$", content, re.MULTILINE)
+    if target_match and not re.fullmatch(r'(?:""|ACCOUNT-\d{3,})', target_match.group(1)):
+        fail(errors, f"{relative} has invalid target_account_ref")
+
+
+def validate_ticket_lifecycle(
+    relative: str,
+    current_content: str,
+    history_content: str,
+    errors: list[str],
+) -> None:
+    status_match = re.search(r"^status:\s*(\S+)\s*$", current_content, re.MULTILINE)
+    allowed_statuses = {"조사중", "초안작성", "초안완료", "회신완료", "보류", "종료"}
+    if not status_match or status_match.group(1) not in allowed_statuses:
+        fail(errors, f"{relative} has invalid ticket status")
+        return
+    if status_match.group(1) == "회신완료":
+        if "현재 초안" in current_content:
+            fail(errors, f"{relative} is completed but still labels the reply as a current draft")
+        if "비식별 실제 발송본" not in current_content or "## 비식별 실제 발송본" not in history_content:
+            fail(errors, f"{relative} is completed without a preserved de-identified sent artifact")
+
+    updated_match = re.search(r"^updated_at:\s*(\d{4}-\d{2}-\d{2})", history_content, re.MULTILINE)
+    event_dates = [date.fromisoformat(value) for value in re.findall(r"^###\s+(\d{4}-\d{2}-\d{2})", history_content, re.MULTILINE)]
+    if updated_match and event_dates and date.fromisoformat(updated_match.group(1)) < max(event_dates):
+        fail(errors, f"{relative} history updated_at predates its latest event")
 
 
 def read_text(relative: str, errors: list[str]) -> str:
@@ -734,6 +821,17 @@ def _validate_decision_packet_v2(
         "inline",
     }:
         fail(errors, f"{relative} Reply Brief v2 has invalid presentation")
+    elif presentation.get("profile") not in {
+        "seungdo-contextual",
+        "technical-detailed",
+    }:
+        fail(errors, f"{relative} Reply Brief v2 has invalid presentation profile")
+    elif presentation.get("tone") != "formal-korean":
+        fail(errors, f"{relative} Reply Brief v2 has invalid presentation tone")
+    elif presentation.get("structure") != "conclusion-first":
+        fail(errors, f"{relative} Reply Brief v2 has invalid presentation structure")
+    if not isinstance(brief.get("goal"), str) or not str(brief.get("goal", "")).strip():
+        fail(errors, f"{relative} Reply Brief v2 has empty goal")
     for key in ["presentation_requirements", "avoid_topics"]:
         values = brief.get(key)
         if not isinstance(values, list) or any(
@@ -846,6 +944,8 @@ def validate_deidentified_repository(errors: list[str]) -> None:
                     evidence_content = required["evidence"].read_text(encoding="utf-8")
                     history_content = required["history"].read_text(encoding="utf-8")
                     relative = str(required["current"].relative_to(ROOT))
+                    validate_account_references(relative, current_content, errors)
+                    validate_ticket_lifecycle(relative, current_content, history_content, errors)
                     if len(current_content) > CURRENT_TICKET_CHAR_BUDGET:
                         fail(errors, f"current ticket exceeds character budget: {relative}")
                     if len(evidence_content) > EVIDENCE_TICKET_CHAR_BUDGET:
@@ -912,7 +1012,6 @@ def validate_deidentified_repository(errors: list[str]) -> None:
     for marker in ["법정 보존 근거 reference:", "고객별 보존/삭제 예외:", "법무 확인일:"]:
         if marker not in profile_template:
             fail(errors, f"customer profile template missing retention field: {marker}")
-
     ticket_template = read_text("템플릿/티켓.md", errors)
     for marker in [
         "decision_packet_version: 2",
@@ -971,7 +1070,114 @@ def validate_deidentified_repository(errors: list[str]) -> None:
             fail(errors, ".private/customer-map.md is not gitignored")
 
 
+def validate_example_repository(errors: list[str]) -> None:
+    example_root = ROOT / "예시"
+    for customer_dir in sorted(path for path in example_root.iterdir() if path.is_dir()):
+        if customer_dir.name == "회신_스타일":
+            continue
+        if not re.fullmatch(r"CUST-\d{3,}", customer_dir.name):
+            fail(errors, f"example customer directory is not de-identified: {customer_dir.relative_to(ROOT)}")
+            continue
+        profile = customer_dir / "프로필.md"
+        if not profile.is_file():
+            fail(errors, f"example customer profile missing: {profile.relative_to(ROOT)}")
+            continue
+        profile_content = profile.read_text(encoding="utf-8")
+        for marker in [
+            "example_provenance: de-identified-reconstruction",
+            "operational_owner: none",
+        ]:
+            if marker not in profile_content:
+                fail(errors, f"example profile missing provenance marker: {profile.relative_to(ROOT)}")
+        if not re.search(
+            rf"^customer_ref:\s*{re.escape(customer_dir.name)}\s*$",
+            profile_content,
+            re.MULTILINE,
+        ):
+            fail(errors, f"example profile customer_ref mismatch: {profile.relative_to(ROOT)}")
+
+        ticket_root = customer_dir / "티켓"
+        if not ticket_root.is_dir():
+            continue
+        for case_dir in sorted(path for path in ticket_root.iterdir() if path.is_dir()):
+            required = {name: case_dir / f"{name}.md" for name in ("current", "evidence", "history")}
+            missing = [name for name, path in required.items() if not path.is_file()]
+            if missing:
+                fail(errors, f"example ticket directory missing {', '.join(missing)}: {case_dir.relative_to(ROOT)}")
+                continue
+            current_content = required["current"].read_text(encoding="utf-8")
+            evidence_content = required["evidence"].read_text(encoding="utf-8")
+            history_content = required["history"].read_text(encoding="utf-8")
+            relative = str(required["current"].relative_to(ROOT))
+            for marker in [
+                "example_provenance: de-identified-reconstruction",
+                "operational_owner: none",
+                "[작성자 소개]",
+            ]:
+                if marker not in current_content:
+                    fail(errors, f"example current ticket missing provenance marker: {relative}")
+            validate_account_references(relative, current_content, errors)
+            validate_ticket_lifecycle(relative, current_content, history_content, errors)
+            if len(current_content) > CURRENT_TICKET_CHAR_BUDGET:
+                fail(errors, f"example current ticket exceeds character budget: {relative}")
+            if len(evidence_content) > EVIDENCE_TICKET_CHAR_BUDGET:
+                fail(errors, f"example ticket evidence exceeds character budget: {required['evidence'].relative_to(ROOT)}")
+            if not re.search(
+                rf"^customer_ref:\s*{re.escape(customer_dir.name)}\s*$",
+                current_content,
+                re.MULTILINE,
+            ):
+                fail(errors, f"example ticket customer_ref mismatch: {relative}")
+            if "TICKET-LOCAL-" in current_content + evidence_content + history_content:
+                fail(errors, f"example ticket uses operational ticket reference: {case_dir.relative_to(ROOT)}")
+            if not re.search(r"^source_ref:\s*TICKET-EXAMPLE-\d{3,}\s*$", current_content, re.MULTILINE):
+                fail(errors, f"example current ticket missing example source_ref: {relative}")
+            for content, path in [
+                (evidence_content, required["evidence"]),
+                (history_content, required["history"]),
+            ]:
+                if not re.search(r"^ticket_ref:\s*TICKET-EXAMPLE-\d{3,}\s*$", content, re.MULTILINE):
+                    fail(errors, f"example record missing example ticket_ref: {path.relative_to(ROOT)}")
+            archive_hash_match = re.search(
+                r"^archived_source_sha256:\s*([0-9a-f]{64})\s*$",
+                history_content,
+                re.MULTILINE,
+            )
+            archive_marker = "## Archived monolithic snapshot through v4\n\n"
+            if archive_hash_match:
+                if archive_marker not in history_content:
+                    fail(errors, f"example history missing archive marker: {required['history'].relative_to(ROOT)}")
+                else:
+                    archived = history_content.split(archive_marker, 1)[1]
+                    digest = hashlib.sha256(archived.encode("utf-8")).hexdigest()
+                    if digest != archive_hash_match.group(1):
+                        fail(errors, f"example archived snapshot hash changed: {required['history'].relative_to(ROOT)}")
+            validate_decision_packet_ticket(
+                relative,
+                current_content,
+                errors,
+                evidence_content=evidence_content,
+            )
+
+        for example_file in customer_dir.rglob("*.md"):
+            example_content = example_file.read_text(encoding="utf-8")
+            if EXAMPLE_PERSONAL_SIGNATURE_PATTERN.search(example_content):
+                fail(
+                    errors,
+                    f"example contains a possible personal signature: {example_file.relative_to(ROOT)}; value intentionally not printed",
+                )
+            if "TICKET-LOCAL-" in example_content:
+                fail(errors, f"example contains an operational ticket reference: {example_file.relative_to(ROOT)}")
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--framework",
+        action="store_true",
+        help="fail when operational customer directories exist in the common upstream candidate",
+    )
+    args = parser.parse_args()
     errors: list[str] = []
 
     for relative in REQUIRED_FILES:
@@ -1001,6 +1207,9 @@ def main() -> int:
         if marker not in task_router:
             fail(errors, f"task router missing marker: {marker}")
 
+    shared_environment = read_text("에이전트/공통_에이전트_환경.md", errors)
+    validate_markdown_sources("에이전트/공통_에이전트_환경.md", shared_environment, errors)
+
     for relative, markers in {
         "템플릿/결정_패킷.md": DECISION_PACKET_TEMPLATE_MARKERS,
         "템플릿/회신_브리프.md": REPLY_BRIEF_TEMPLATE_MARKERS,
@@ -1009,6 +1218,22 @@ def main() -> int:
         for marker in markers:
             if marker not in content:
                 fail(errors, f"{relative} missing semantic contract marker: {marker}")
+
+    reply_style = read_text("플레이북/회신_스타일.md", errors)
+    for marker in REPLY_STYLE_MARKERS:
+        if marker not in reply_style:
+            fail(errors, f"reply style contract missing marker: {marker}")
+
+    technical_example = read_text("예시/회신_스타일/technical-detailed.md", errors)
+    for marker in TECHNICAL_DETAILED_EXAMPLE_MARKERS:
+        if marker not in technical_example:
+            fail(errors, f"technical-detailed example missing marker: {marker}")
+    for source_relative in [
+        "예시/CUST-900/티켓/2026-08-26_Rocky-Linux-RI-SP/current.md",
+        "예시/CUST-900/티켓/2026-08-26_Rocky-Linux-RI-SP/evidence.md",
+    ]:
+        if not (ROOT / source_relative).is_file():
+            fail(errors, f"technical-detailed example source missing: {source_relative}")
 
     for relative, markers in ROUTED_MODULE_MARKERS.items():
         content = read_text(relative, errors)
@@ -1024,8 +1249,10 @@ def main() -> int:
 
     runtime_status = read_text("에이전트/런타임_상태.md", errors)
     for marker in [
-        "`customer-aws-readonly` | blocked",
-        "`fitcloud-billing` | blocked",
+        "`customer-aws-readonly` | enabled",
+        "`fitcloud-billing` | enabled",
+        "### Evidence provenance",
+        "Operator-attested",
         "mcp-proxy-for-aws@1.6.4",
         "aws___search_documentation",
         "aws___read_documentation",
@@ -1076,6 +1303,15 @@ def main() -> int:
 
     policy_card_count, verified_source_count = validate_policy_cards(errors)
     validate_deidentified_repository(errors)
+    validate_example_repository(errors)
+    if args.framework:
+        customer_dirs = sorted(path.name for path in (ROOT / "고객").iterdir() if path.is_dir())
+        if customer_dirs:
+            fail(errors, "framework candidate contains workspace-owned customer directories")
+        customer_index = read_text("고객/_인덱스.md", errors)
+        clean_customer_index = read_text("템플릿/고객_인덱스.md", errors)
+        if customer_index != clean_customer_index:
+            fail(errors, "framework candidate customer index differs from the clean template")
 
     if errors:
         print("workspace validation: FAIL")
@@ -1091,7 +1327,9 @@ def main() -> int:
         f"{combined_length} / {AGENTS_CLAUDE_COMBINED_CHAR_BUDGET}"
     )
     print("- entrypoints: AGENTS.md, Kiro steering")
+    print(f"- validation mode: {'framework' if args.framework else 'workspace'}")
     print("- templates: frontmatter present")
+    print("- shared documentation citation map: consistent")
     print(
         "- decision contract: v1 compatible; v2 JSON graph checks enabled "
         f"(packet {DECISION_PACKET_V2_CHAR_BUDGET}, brief {REPLY_BRIEF_V2_CHAR_BUDGET} chars)"

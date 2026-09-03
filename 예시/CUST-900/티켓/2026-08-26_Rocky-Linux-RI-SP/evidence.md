@@ -1,5 +1,5 @@
 ---
-ticket_ref: TICKET-LOCAL-001
+ticket_ref: TICKET-EXAMPLE-001
 current_revision: v4
 updated_at: 2026-08-26 14:26 KST
 reuse_policy: current-ticket

@@ -6,7 +6,7 @@ This repository stores de-identified customer-ticket context, evidence, decision
 
 - Draft only. Never send email, post Zendesk comments, or represent a draft as sent.
 - Never call customer-account write APIs, change infrastructure, or run `terraform apply`.
-- `aws-customer-account-ops` is temporarily blocked. Do not install or invoke an existing copy; follow `에이전트/런타임_상태.md`.
+- Customer-account access is read-only and broker-mediated only; confirm capability status in `에이전트/런타임_상태.md` first.
 - Never print or commit credentials, tokens, session values, private keys, or secret contents.
 - Commit only de-identified customer context until security-team/team-lead approval. Use `CUST-NNN`, `CONTACT-NNN`, and `ACCOUNT-NNN`; keep real mappings only in gitignored `.private/customer-map.md`.
 - Customer-facing cost figures must be FitCloud-curated. Never expose or mention raw AWS billing figures.

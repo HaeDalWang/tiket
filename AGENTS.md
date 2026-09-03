@@ -5,7 +5,7 @@ Before work, read the root `CLAUDE.md`, then classify the task through `에이�
 ## Hard stops
 
 - Draft customer replies only; never send email or post Zendesk comments.
-- Customer AWS/FitCloud inspection is blocked while `aws-customer-account-ops` is under repair; follow `에이전트/런타임_상태.md`.
+- Customer AWS/FitCloud inspection is read-only and broker-mediated; check `에이전트/런타임_상태.md` before use.
 - Never call customer-account write APIs, change infrastructure, or run `terraform apply`.
 - Never expose or commit secrets. Commit only de-identified customer context; keep real mappings in gitignored `.private/customer-map.md`.
 - Customer-facing cost figures must be FitCloud-curated; never mention raw AWS billing figures.

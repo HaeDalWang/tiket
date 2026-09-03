@@ -4,14 +4,18 @@
 
 Claude Code, Codex, Hermes, Kiro가 같은 자료와 경계를 사용해 회신 초안을 만들고, 검수·발송·실제 인프라 변경은 사람이 담당한다.
 
+> **처음이라면 [`온보딩.md`](온보딩.md)부터 순서대로 따라간다.** clone부터 첫 합성 티켓까지의 유일한 경로다.
+
 ## 구조
 
 ```text
+온보딩.md             신규 엔지니어 Day 1 경로
 CLAUDE.md            에이전트 상세 규칙 정본(영문)
 AGENTS.md            Codex/Hermes 공용 진입점(영문)
 .kiro/steering/      Kiro 자동 로드 진입점
 에이전트/             공통 능력 매핑과 설치 검증
 고객/                 고객사 프로필·티켓·관계 컨텍스트
+예시/                 공통 upstream의 비식별 재구성 티켓 표본
 회사규정/             대용량 규정의 라우팅·카드·원본 목록
 플레이북/             근거 검증, 회신, 인프라 작업, 알려진 함정
 연계/                 다른 프로젝트와 PoC 의뢰·결과 handoff
@@ -20,6 +24,10 @@ scripts/              저장소 구조 검증 도구
 ```
 
 동료 엔지니어 배포는 각자의 private 운영 저장소와 공통 upstream을 연결하는 Git-only 방식을 사용한다. 프로젝트 폴더 전체를 압축하거나 파일 복사로 배포하지 않는다. 자세한 remote 구성, 경로 소유권, 미결정 사항은 `DISTRIBUTION.md`를 따른다.
+
+현재 개인 repository의 Git history는 배포하지 않는다. 추후 회사 GitHub의 공통 upstream은 `scripts/export_framework_snapshot.py`로 생성한 clean snapshot의 새 history에서 시작한다.
+
+공통 upstream의 `고객/`에는 운영 고객 기록을 두지 않는다. `예시/`는 실제 workflow를 비식별 reference로 재구성해 구조·lifecycle·회신 스타일을 보여주는 자료이며 활성 고객 상태가 아니다. 실제 업무는 각 엔지니어의 private `origin`에 만든 `고객/CUST-NNN/`에서 진행한다.
 
 에이전트가 읽는 규칙과 라우팅 지시는 가능한 한 영어로 작성한다. 사람이 관리하는 고객 정보, 티켓 내용, 고객 회신은 한국어로 작성한다.
 
@@ -66,4 +74,13 @@ GitHub는 private 저장소만 사용한다. 그래도 자격증명, 토큰, 세
 
 ```bash
 python3 scripts/validate_workspace.py
+```
+
+공통 upstream 배포 후보는 운영 고객 디렉터리 부재까지 확인한다.
+
+```bash
+python3 scripts/validate_workspace.py --framework
+python3 scripts/test_validate_workspace.py
+python3 scripts/test_export_framework_snapshot.py
+python3 scripts/check_public_sources.py
 ```

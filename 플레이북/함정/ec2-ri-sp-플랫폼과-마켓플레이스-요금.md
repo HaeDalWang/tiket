@@ -21,7 +21,7 @@ Verified against current AWS documentation on 2026-08-26 (`TICKET-LOCAL-001`).
 - Separate "RI/SP applies" from "the whole line item drops". Seller software charges remain.
 - Treat a customer report of "RI did not apply" as a matching problem to diagnose (platform, family, size, tenancy, scope) or a residual software charge, not as a defect in the discount model.
 - Do not state or imply a coverage percentage or amount. Customer-facing figures must be FitCloud-curated.
-- Customer-account inspection stays blocked while `aws-customer-account-ops` is under repair. Provide the console path or a read-only CLI query for the customer to run instead.
+- Customer-account inspection is available read-only. Confirm `Platform details` and `Usage operation` with a `Describe`-class query, or give the customer the console path when account access is out of scope for the ticket.
 
 ## Verification before reuse
 

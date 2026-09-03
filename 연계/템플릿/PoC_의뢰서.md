@@ -3,7 +3,7 @@ id: POC-YYYYMMDD-NNN
 ticket: "고객/<customer-ref>/티켓/YYYY-MM-DD_주제.md"
 status: requested
 requested_at: YYYY-MM-DD
-requested_by: baeseungdo
+requested_by: ENGINEER-NNN
 target_repository: ""
 target_branch: ""
 ---

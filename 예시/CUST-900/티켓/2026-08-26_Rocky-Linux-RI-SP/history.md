@@ -1,9 +1,9 @@
 ---
-ticket_ref: TICKET-LOCAL-001
+ticket_ref: TICKET-EXAMPLE-001
 load_policy: on-demand
 archived_at: 2026-08-26
-archived_source_path: 고객/CUST-001/티켓/2026-08-26_Rocky-Linux-RI-SP-적용문의.md
-archived_source_sha256: 1fd2c34bfd07fe71ccbe893174b17c6d987757ec6f0d7dd86248df1b5064fe19
+archived_source_path: 예시/CUST-900/티켓/2026-08-26_Rocky-Linux-RI-SP-적용문의.md
+archived_source_sha256: 4fe453207c665e2f25e9c5e5aeaef8c78017fe8c7063a6260a23d5345e01de9b
 ---
 
 # Rocky Linux RI/SP 문의 — 전체 이력
@@ -14,11 +14,11 @@ archived_source_sha256: 1fd2c34bfd07fe71ccbe893174b17c6d987757ec6f0d7dd86248df1b
 
 ---
 title: Rocky Linux EC2의 RI 및 Savings Plans 적용 문의
-customer_ref: CUST-001
+customer_ref: CUST-900
 account_ref: ACCOUNT-001
 date: 2026-08-26
 status: 초안작성
-source_ref: TICKET-LOCAL-001
+source_ref: TICKET-EXAMPLE-001
 tags: [티켓, EC2, Rocky-Linux, Reserved-Instances, Savings-Plans]
 policy_ids: [POLICY-SEC-001, POLICY-PAYER-001, POLICY-COST-ESC-001]
 poc_id: ""
@@ -51,7 +51,7 @@ decision_packet_version: 2
 
 ### 적용 컨텍스트
 
-- 고객 프로필: `고객/CUST-001/프로필.md`
+- 고객 프로필: `예시/CUST-900/프로필.md`
 - 유사 티켓: 없음
 - 적용 회사 규정: `POLICY-SEC-001` (draft; 비식별화 경계만 적용), `POLICY-PAYER-001` (draft; Payer/계약 확인 필요사항 식별에만 사용), `POLICY-COST-ESC-001` (active; RI/SP·할인 문의이므로 CSR handoff 대상)
 - CSR handoff 상태: 미실행. `POLICY-COST-ESC-001`에 따라 사람이 Slack에서 `@csr` handoff를 게시해야 하며, 에이전트는 게시하지 않는다. handoff 시각·응답·에스컬레이션은 확정 후 append한다.
@@ -461,7 +461,7 @@ avoid:
   - "고객 계정 실측을 수행한 듯한 표현"
   - "H1을 확정으로 서술"
 commands: on-request
-salutation_ref: "고객/CUST-001/프로필.md#CONTACT-001"
+salutation_ref: "예시/CUST-900/프로필.md#CONTACT-001"
 ```
 
 ### v2 (2026-08-26 14:26 KST)
@@ -513,7 +513,7 @@ salutation_ref: "고객/CUST-001/프로필.md#CONTACT-001"
 
 ```text
 안녕하세요.
-솔트웨어 배승도입니다
+[작성자 소개]
 
 확인하고 회신드리겠습니다
 
@@ -598,7 +598,7 @@ AWS Marketplace에는 Rocky Linux 프로젝트가 제공하는 공식 무료 이
 ```text
 안녕하세요, 부장님.
 
-솔트웨어 배승도입니다. 문의주신 Rocky Linux 인스턴스의 RI/SP 적용 여부 확인 결과 안내드립니다.
+[작성자 소개]. 문의주신 Rocky Linux 인스턴스의 RI/SP 적용 여부 확인 결과 안내드립니다.
 
 결론부터 말씀드리면, Rocky Linux는 RI와 Savings Plans 모두 적용 가능합니다. RHEL이나 SUSE처럼 AWS에서 별도 과금 플랫폼으로 구분되는 유료 배포판이 아니기 때문에, 공식 Rocky Linux 이미지 기준으로는 기본 Linux/UNIX 플랫폼으로 과금됩니다.
 
@@ -697,7 +697,7 @@ AWS Marketplace에는 Rocky Linux 프로젝트가 제공하는 공식 무료 이
 
 ### 2026-08-26 — 최초 기록
 
-- 신규 고객을 `CUST-001`로 비식별 등록하고 문의를 `TICKET-LOCAL-001`로 기록함.
+- 신규 고객을 `CUST-900`로 비식별 등록하고 문의를 `TICKET-EXAMPLE-001`로 기록함.
 - AWS 공식 문서 MCP로 RI platform 일치 조건, Savings Plans OS 유연성, AMI billing field, Marketplace 요금 구조를 확인함.
 - 고객 계정의 실제 AMI 속성은 확인되지 않아 회신을 조건부 초안으로 유지함.
 
