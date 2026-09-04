@@ -51,13 +51,16 @@ flowchart TD
 | [`ONBOARDING.md`](ONBOARDING.md) | 신규 엔지니어가 clone부터 첫 연습까지 따라가는 문서 |
 | `CLAUDE.md`, `AGENTS.md`, `.kiro/steering/` | 에이전트별 진입점. 내용은 같은 규칙을 가리킨다 |
 | `agents/` | 능력 카탈로그, 설치 검증, MCP 설정의 유일한 정본 |
-| `customers/` | 고객사 프로필·티켓. Git에 올라가지 않는다(아래 보안 참고) |
+| `customers/` | 고객사 프로필·티켓. clone 직후엔 비어 있고 실제 업무를 하면서 채워진다 |
 | `examples/` | 실제 워크플로우를 비식별화해 재구성한 견본 티켓 |
 | `policy/` | 대용량 회사 규정의 라우팅·카드·원본 |
 | `playbooks/` | 근거 검증, 회신 작성, 인프라 작업, 알려진 함정 |
 | `templates/` | 신규 고객·티켓·Decision Packet·Reply Brief 시작점 |
 | `handoff/` | 별도 프로젝트에 PoC를 의뢰하고 결과를 받는 창구 |
 | `scripts/` | 저장소 구조·보안 경계를 자동 검증하는 도구 |
+
+`customers/`는 빈 폴더로 시작한다. 이 저장소는 사례집이 아니라 워크스페이스라, 티켓을 처리하면서 그때그때 쌓인다.
+Git에는 올라가지 않는다(아래 보안 참고) — 엔지니어마다 로컬에 따로 쌓이고, 서로 동기화되지 않는다.
 
 ## 시작하기
 
