@@ -90,6 +90,10 @@ def classification(relative: Path, excerpts: set[str]) -> str:
         return "include"
     if text.startswith("customers/CUST-"):
         return "workspace-owned"
+    # design/ records how this framework is being built, not how to use it.
+    # A downstream workspace gets the framework, not our build journal.
+    if text == "design" or text.startswith("design/"):
+        return "workspace-owned"
 
     if text.startswith("policy/inbox/") or text.startswith("policy/excerpts/"):
         return "workspace-owned"
