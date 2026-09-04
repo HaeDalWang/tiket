@@ -245,8 +245,9 @@ echo "실제 실행: ${marker:-확인불가}"
 for d in ~/.claude ~/.hermes ~/.agents ~/.kiro ~/.config/opencode ~/.cursor ~/.codeium/windsurf ~/.augment ~/.gemini; do
   p="$d/skills/aws-customer-account-ops"
   [ -d "$p" ] || continue
+  hasher=$(command -v sha256sum || echo "shasum -a 256")
   printf '%s  %s\n' \
-    "$(cat "$p"/get-customer-credentials.sh "$p"/get-sts-token.sh "$p"/fitcloud-api.sh 2>/dev/null | shasum -a 256 | cut -c1-16)" "$p"
+    "$(cat "$p"/get-customer-credentials.sh "$p"/get-sts-token.sh "$p"/fitcloud-api.sh 2>/dev/null | $hasher | cut -c1-16)" "$p"
 done
 ```
 
