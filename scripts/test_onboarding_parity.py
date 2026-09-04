@@ -16,6 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SH = ROOT / "scripts/onboarding.sh"
 PS1 = ROOT / "scripts/onboarding.ps1"
+FETCH_SH = ROOT / "scripts/fetch-ticket.sh"
+FETCH_PS1 = ROOT / "scripts/fetch-ticket.ps1"
 
 BLOCK = re.compile(r"# STEPS-PARITY-START(.*?)# STEPS-PARITY-END", re.S)
 
@@ -79,6 +81,49 @@ class OnboardingParityTests(unittest.TestCase):
     def test_both_support_a_non_interactive_check_mode(self) -> None:
         self.assertIn("--check", SH.read_text(encoding="utf-8"))
         self.assertIn("$Check", PS1.read_text(encoding="utf-8"))
+
+
+class FetchTicketParityTests(unittest.TestCase):
+    """fetch-ticket 의 .sh 와 .ps1 이 같은 계약을 지키는지 본다."""
+
+    def test_both_scripts_exist(self) -> None:
+        for path in (FETCH_SH, FETCH_PS1):
+            self.assertTrue(path.is_file(), f"없음: {path}")
+
+    def test_both_read_the_same_conf_file(self) -> None:
+        for path in (FETCH_SH, FETCH_PS1):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn(".config/saltware/zendesk.conf", text, f"{path.name}: conf 경로 불일치")
+
+    def test_both_resolve_the_same_setting_names(self) -> None:
+        """우리 이름과 외부 스킬 호환 이름을 양쪽 다 받아야 한다."""
+        for path in (FETCH_SH, FETCH_PS1):
+            text = path.read_text(encoding="utf-8")
+            for key in ("ZENDESK_SUBDOMAIN", "ZENDESK_EMAIL", "ZENDESK_API_TOKEN"):
+                self.assertIn(key, text, f"{path.name}: {key} 누락")
+            for legacy in ("Zendesk_SUBDOMAIN", "Zendesk_EMAIL", "Zendesk_API"):
+                self.assertIn(legacy, text, f"{path.name}: 호환 이름 {legacy} 누락")
+
+    def test_both_follow_pagination(self) -> None:
+        """코멘트 100건이 넘는 스레드가 잘리면 답변이 통째로 틀어진다."""
+        for path in (FETCH_SH, FETCH_PS1):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("has_more", text, f"{path.name}: cursor 페이지네이션 미처리")
+            self.assertIn("next_page", text, f"{path.name}: offset 폴백 미처리")
+
+    def test_both_support_json_output(self) -> None:
+        self.assertIn("--json", FETCH_SH.read_text(encoding="utf-8"))
+        self.assertIn("$Json", FETCH_PS1.read_text(encoding="utf-8"))
+
+    def test_neither_writes_the_thread_to_disk(self) -> None:
+        """원본 스레드에는 실명·계정ID가 들어 있다. 어디에 남길지는 호출자가 정한다."""
+        for path in (FETCH_SH, FETCH_PS1):
+            for line in path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if stripped.startswith("#"):
+                    continue
+                for bad in ("Out-File", "Set-Content", "tee "):
+                    self.assertNotIn(bad, stripped, f"{path.name}: 디스크 기록: {stripped}")
 
 
 if __name__ == "__main__":
