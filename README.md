@@ -1,97 +1,79 @@
 # tiket
 
-고객사 기술 티켓 응대 워크스페이스. 코드 저장소가 아니라 **고객 컨텍스트, 근거, 판단 변화, 회신 이력의 저장소**다.
+고객사 기술 티켓에 AI가 조사·초안을 작성하고, 사람이 검토·발송하는 워크스페이스다.
+Claude Code, Codex, Hermes, Kiro 중 무엇을 쓰든 같은 규칙·같은 도구·같은 안전장치 안에서 움직인다.
 
-Claude Code, Codex, Hermes, Kiro가 같은 자료와 경계를 사용해 회신 초안을 만들고, 검수·발송·실제 인프라 변경은 사람이 담당한다.
+## 왜 필요한가
 
-> **처음이라면 [`ONBOARDING.md`](ONBOARDING.md)부터 순서대로 따라간다.** clone부터 첫 합성 티켓까지의 유일한 경로다.
+AI에게 고객 티켓을 그냥 맡기면 세 가지가 문제가 된다.
+
+- **모르는 걸 아는 것처럼 말한다.** 근거 없이 "RI가 적용됩니다"라고 답했다가 틀리면 신뢰가 깨진다.
+- **권한이 실수를 그대로 실행한다.** AI가 실수로 고객 AWS 리소스를 바꾸는 명령을 실행할 수 있다.
+- **큰 규정 문서를 매번 통째로 읽는다.** PDF 수백 페이지를 매 티켓마다 다시 훑으면 느리고, 낡은 조항을 그대로 인용하기도 쉽다.
+
+이 저장소는 이 세 가지를 구조로 막는다: 근거 등급을 강제로 나누고, AWS 계정은 서버 쪽에서 쓰기를 차단하고,
+필요한 규정 조각만 라우팅해서 불러온다. 아래는 티켓 한 건이 실제로 이 구조를 어떻게 통과하는지다.
+
+## 티켓 한 건의 흐름
+
+```mermaid
+flowchart TD
+    A(["고객 티켓 도착"]) --> B["작업 라우터<br/>quick / standard / high-risk 분류"]
+    B --> C["관련 규정 카드만 로드<br/>policy/_routing.md"]
+    C --> D["read-only 조사<br/>공식 문서 + 과거 유사 티켓"]
+    D --> G1{{"AWS 계정 쓰기 시도?"}}
+    G1 -->|예| G1X["서버 쪽에서 차단<br/>read-only 브로커가 강제"]
+    G1 -->|아니오| E["근거 기록<br/>확인됨 / 추측 / 모름 분리"]
+    G1X -.->|read-only로 계속| E
+    E --> F["Decision Packet + Reply Brief 생성"]
+    F --> H["회신 초안"]
+    H --> I{"사람 검수"}
+    I -->|반려| E
+    I -->|승인| J(["사람이 발송"])
+    J --> K["실제 발송문 + 고객 반응 append<br/>다음 티켓의 근거가 됨"]
+
+    style G1X fill:#5a1f1f,stroke:#e06666,color:#fff
+    style J fill:#1f3d1f,stroke:#6aa84f,color:#fff
+```
+
+굵게 봐야 할 지점 세 곳:
+
+| 지점 | 막는 것 |
+|---|---|
+| AWS 계정 쓰기 시도 → 차단 | AI 판단이 아니라 **브로커가 서버에서** 강제하는 read-only. AI 실수와 무관하게 안 뚫린다 |
+| 근거 기록 | `확인됨`으로 적으려면 실제 공식 문서를 찾아야 한다. 못 찾으면 `추측`/`모름`으로만 남고, 그 상태로는 확정 답변을 못 만든다 |
+| 사람 검수 → 발송 | AI는 초안까지만 만든다. 이메일·Zendesk 댓글을 직접 보내는 경로 자체가 없다 |
 
 ## 구조
 
-```text
-ONBOARDING.md        신규 엔지니어 Day 1 경로
-CLAUDE.md            에이전트 상세 규칙 정본(영문)
-AGENTS.md            Codex/Hermes 공용 진입점(영문)
-.kiro/steering/      Kiro 자동 로드 진입점
-.kiro/settings/      Kiro MCP 설정(생성물)
-.mcp.json            Claude Code MCP 설정(생성물)
-.claude/settings.json Claude Code MCP 툴 차단(생성물)
-.codex/config.toml   Codex MCP 설정(생성물)
-.githooks/           고객 자료 유출·오push 차단 hook
-agents/              공통 능력 매핑, 설치 검증, MCP 정본 manifest
-customers/           고객사 프로필·티켓·관계 컨텍스트
-examples/            공통 upstream의 비식별 재구성 티켓 표본
-policy/              대용량 규정의 라우팅·카드·원본 목록
-playbooks/           근거 검증, 회신, 인프라 작업, 알려진 함정
-handoff/             다른 프로젝트와 PoC 의뢰·결과 handoff
-templates/           신규 고객사·티켓 시작점
-scripts/             저장소 구조 검증 도구
-```
-
-MCP는 clone으로 함께 전달된다. `agents/environment/mcp-manifest.json`이 유일한 정본이고 호스트별 설정 파일은 `scripts/render_agent_configs.py`가 생성한다. 생성물을 직접 수정하면 validator가 실패로 보고한다. AWS 문서 MCP는 `--read-only`와 `--skip-auth`로 문서 조회만 가능하며, 고객 계정 접근은 브로커 경유 skill만 사용한다.
-
-디렉터리와 파일 이름은 ASCII만 사용한다. 파일 **내용**은 한국어로 쓴다. 경로에 한글을 쓰면 macOS·Linux·Git 사이의 Unicode 정규화 차이로 도구가 같은 파일을 다른 이름으로 인식한다.
-
-동료 엔지니어 배포는 공통 upstream을 clone하는 Git-only 방식을 사용한다. 프로젝트 폴더 전체를 압축하거나 파일 복사로 배포하지 않는다.
-
-Alpha 단계에서는 remote가 하나뿐이다. 엔지니어 개인 private 운영 저장소는 회사 승인 대기 중이므로 `customers/CUST-*`는 Git 추적에서 제외되고 로컬에만 보관된다. 공통 저장소로의 push는 `.githooks/pre-push`가 차단한다. clone 직후 `git config core.hooksPath .githooks`로 이 장치를 활성화해야 하며, 미설정 상태는 validator가 실패로 보고한다. 자세한 remote 구성, 경로 소유권, 승인 후 전환 절차는 `DISTRIBUTION.md`를 따른다.
-
-현재 개인 repository의 Git history는 배포하지 않는다. 추후 회사 GitHub의 공통 upstream은 `scripts/export_framework_snapshot.py`로 생성한 clean snapshot의 새 history에서 시작한다.
-
-공통 upstream의 `customers/`에는 운영 고객 기록을 두지 않는다. `examples/`는 실제 workflow를 비식별 reference로 재구성해 구조·lifecycle·회신 스타일을 보여주는 자료이며 활성 고객 상태가 아니다. 실제 업무는 각 엔지니어의 private `origin`에 만든 `customers/CUST-NNN/`에서 진행한다.
-
-에이전트가 읽는 규칙과 라우팅 지시는 가능한 한 영어로 작성한다. 사람이 관리하는 고객 정보, 티켓 내용, 고객 회신은 한국어로 작성한다.
-
-## 티켓이 들어오면
-
-1. `customers/<고객사>/profile.md`를 읽는다.
-2. `policy/_routing.md`에서 적용 규정을 찾는다.
-3. 고객사의 과거 티켓에서 유사 건을 찾는다.
-4. `templates/ticket.md`로 티켓 파일을 만든다.
-5. read-only 조사와 공식 근거를 기록한다.
-6. 필요하면 `handoff/`를 통해 별도 프로젝트에 PoC를 의뢰한다.
-7. 검증된 결과로 회신 초안을 작성한다.
-8. 사람이 검수·발송한 뒤 실제 발송문과 고객 반응을 append한다.
-
-## 담당자와 관계성
-
-보안팀/팀장 승인 전에는 tracked 파일에 실제 고객사명과 담당자 이름·연락처를 기록하지 않는다. `CUST-001`, `CONTACT-001` 같은 비식별 reference를 사용하고 실제 연결 정보는 Git에서 제외되는 `.private/customer-map.md`에만 둔다. 관계성 기록은 날짜가 있는 관찰 행동과 대응 방식으로 제한하며 성격이나 인격 평가는 기록하지 않는다.
-
-## 대용량 회사 규정
-
-PDF와 이미지를 매번 프롬프트에 모두 넣지 않는다. `_routing.md` → 관련 정책 카드 → 필요한 추출 구간 → 원본 페이지 순서로 필요한 자료만 읽는다. 원본 파일은 기본적으로 Git에서 제외한다.
-
-정리 전 Raw 파일은 `policy/inbox/`에 그대로 넣는다. 수신함 내용은 기본적으로 Git에서 제외되며, 에이전트가 목록화·OCR·버전 판별·정책 카드 생성을 진행한다.
-
-## PoC 연결
-
-티켓 저장소에는 질문·제약·판단을, PoC 프로젝트에는 코드·실험을 둔다. 결과는 repository/branch/commit, 실행 명령, 실제 결과, 한계가 포함된 결과서로 반환한다.
-
-## 경계
-
 | 위치 | 역할 |
 |---|---|
-| `tiket` | 고객 응대 컨텍스트·근거·티켓·회신 이력 |
-| `~/salt/<고객사>/` 또는 지정 프로젝트 | Terraform 등 실제 코드와 PoC |
-| `~/Documents/obsidian/` | 개인 자료, 에이전트 접근 불가 |
+| [`ONBOARDING.md`](ONBOARDING.md) | 신규 엔지니어가 clone부터 첫 연습까지 따라가는 문서 |
+| `CLAUDE.md`, `AGENTS.md`, `.kiro/steering/` | 에이전트별 진입점. 내용은 같은 규칙을 가리킨다 |
+| `agents/` | 능력 카탈로그, 설치 검증, MCP 설정의 유일한 정본 |
+| `customers/` | 고객사 프로필·티켓. Git에 올라가지 않는다(아래 보안 참고) |
+| `examples/` | 실제 워크플로우를 비식별화해 재구성한 견본 티켓 |
+| `policy/` | 대용량 회사 규정의 라우팅·카드·원본 |
+| `playbooks/` | 근거 검증, 회신 작성, 인프라 작업, 알려진 함정 |
+| `templates/` | 신규 고객·티켓·Decision Packet·Reply Brief 시작점 |
+| `handoff/` | 별도 프로젝트에 PoC를 의뢰하고 결과를 받는 창구 |
+| `scripts/` | 저장소 구조·보안 경계를 자동 검증하는 도구 |
 
-## 보안
+## 시작하기
 
-GitHub는 private 저장소만 사용한다. 그래도 자격증명, 토큰, 세션 값, private key, Terraform state는 절대 커밋하지 않는다. 고객 전달 비용 수치는 FitCloud 정제값만 사용한다.
-
-보안팀/팀장 승인 전에는 고객사명, 담당자 연락처, AWS Account/Payer ID, IP, CIDR 등 고객 보안정보도 commit하지 않는다. 티켓 원문은 비식별화한 뒤 저장한다.
-
-구조 검증은 다음 명령으로 수행한다.
+처음이면 [`ONBOARDING.md`](ONBOARDING.md)부터. clone, 도구 확인, 스킬 설치, 첫 합성 티켓 연습까지 순서대로 있다.
 
 ```bash
 python3 scripts/validate_workspace.py
 ```
 
-공통 upstream 배포 후보는 운영 고객 디렉터리 부재까지 확인한다.
+구조·보안 경계가 정상인지 확인하는 명령이다. `PASS`가 아니면 아래 줄에 뭐가 빠졌는지 나온다.
 
-```bash
-python3 scripts/validate_workspace.py --framework
-python3 scripts/test_validate_workspace.py
-python3 scripts/test_export_framework_snapshot.py
-python3 scripts/check_public_sources.py
-```
+## 보안 경계 (요약)
+
+- **초안까지만.** 발송·댓글 등록은 사람만 한다.
+- **고객 AWS는 read-only.** 계정 역할에 관리자 권한이 있어도 세션은 서버에서 read-only로 강제된다.
+- **고객 데이터는 Git에 안 올라간다.** `customers/`는 gitignore + push guard 이중으로 막혀 있다.
+- **비용은 FitCloud 정제값만.** AWS 원본 청구 수치를 고객에게 노출하지 않는다.
+
+세부 규칙과 근거는 `CLAUDE.md`, 배포·remote 구성은 `DISTRIBUTION.md`를 따른다.
