@@ -79,65 +79,84 @@ if ((Test-ConfKey "ZENDESK_SUBDOMAIN") -and (Test-ConfKey "ZENDESK_EMAIL") -and 
     Write-Bad "미설정 — 해결: pwsh -File scripts/onboarding.ps1"
 } else {
     Write-Host ""
-    Write-Host "  Zendesk API 토큰이 필요하다. 아직 없으면 먼저 발급받는다:"
-    Write-Host "    Zendesk 관리센터 → 앱 및 통합 → API → Zendesk API → 토큰 추가"
-    Write-Host "  건너뛰려면 그냥 Enter 를 누른다."
+    Write-Host "  Zendesk 토큰을 등록한다. 티켓을 번호로 가져오려면 필요하다."
+    Write-Host "  토큰 발급: Zendesk 관리센터 → 앱 및 통합 → API → Zendesk API → 토큰 추가"
     Write-Host ""
-    $zdSub = Read-Host "  서브도메인 (예: saltware)"
-    if ([string]::IsNullOrWhiteSpace($zdSub)) {
-        Write-Skip "자격증명 설정을 건너뛰었다. 나중에 다시 실행하면 된다."
+
+    # 빈 입력은 건너뛰기가 아니다. 건너뛰려면 skip 을 직접 입력해야 한다 —
+    # 필수 단계에 쉬운 탈출구를 두면 대부분 그걸 누르고, 나중에 안 된다고 되돌아온다.
+    function Read-Required {
+        param([string]$Label)
+        for ($i = 0; $i -lt 3; $i++) {
+            $v = Read-Host "  $Label"
+            if ($v -eq "skip") { return $null }
+            if (-not [string]::IsNullOrWhiteSpace($v)) { return $v }
+            Write-Host "    값이 필요하다. 지금 등록할 수 없으면 skip 을 입력한다."
+        }
+        return $null
+    }
+
+    $zdSub = Read-Required "Zendesk 서브도메인 (예: saltware)"
+    if (-not $zdSub) {
+        Write-Skip "토큰 등록을 건너뛰었다. 티켓 조회는 아직 안 된다."
+        Write-Skip "나중에 다시 실행: pwsh -File scripts/onboarding.ps1"
     } else {
-        $zdEmail = Read-Host "  에이전트 이메일"
-        # AsSecureString: 입력이 화면에 찍히지 않는다.
-        $zdTokenSecure = Read-Host "  API 토큰 (화면에 안 보인다)" -AsSecureString
-        $zdToken = [System.Net.NetworkCredential]::new("", $zdTokenSecure).Password
-
-        if ([string]::IsNullOrWhiteSpace($zdEmail) -or [string]::IsNullOrWhiteSpace($zdToken)) {
-            Write-Bad "이메일 또는 토큰이 비었다. 저장하지 않았다."
+        # 'Zendesk 로그인 이메일'로 적는다. 이 저장소에서 '에이전트'는 AI 도구를 뜻하므로
+        # Zendesk 쪽 agent(상담원)와 겹쳐 읽는 사람이 자기 이메일인지 헷갈린다.
+        $zdEmail = Read-Required "Zendesk 로그인 이메일 (본인 계정)"
+        if (-not $zdEmail) {
+            Write-Skip "토큰 등록을 건너뛰었다. 나중에 다시 실행: pwsh -File scripts/onboarding.ps1"
         } else {
-            $zdHost = if ($zdSub -like "*.zendesk.com") { $zdSub } else { "$zdSub.zendesk.com" }
-            Write-Host "  확인 중: https://$zdHost ..."
-            $pair = "$zdEmail/token:$zdToken"
-            $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
-            $code = 0
-            try {
-                $resp = Invoke-WebRequest -Uri "https://$zdHost/api/v2/users/me.json" `
-                    -Headers @{ Authorization = "Basic $basic" } `
-                    -TimeoutSec 20 -UseBasicParsing -ErrorAction Stop
-                $code = $resp.StatusCode
-            } catch {
-                if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
-            }
+            $zdTokenSecure = Read-Host "  API 토큰 (화면에 안 보인다)" -AsSecureString
+            $zdToken = [System.Net.NetworkCredential]::new("", $zdTokenSecure).Password
 
-            if ($code -eq 200) {
-                $who = "?"
-                try { $u = ($resp.Content | ConvertFrom-Json).user; $who = "$($u.name) ($($u.role))" } catch {}
-                New-Item -ItemType Directory -Force -Path $ConfDir | Out-Null
-                $lines = @(
-                    "# tiket Zendesk credentials. 이 파일 내용을 채팅·이슈·PR 에 붙여넣지 않는다."
-                    "# 다시 설정하려면: pwsh -File scripts/onboarding.ps1"
-                    "ZENDESK_SUBDOMAIN=$zdSub"
-                    "ZENDESK_EMAIL=$zdEmail"
-                    "ZENDESK_API_TOKEN=$zdToken"
-                )
-                Set-Content -Path $ZendeskConf -Value $lines -Encoding UTF8
-                # NTFS 에는 chmod 가 없다. 상속을 끊고 현재 사용자만 남긴다.
-                try {
-                    $acl = Get-Acl $ZendeskConf
-                    $acl.SetAccessRuleProtection($true, $false)
-                    $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) | Out-Null }
-                    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-                        "$env:USERDOMAIN\$env:USERNAME", "FullControl", "Allow")
-                    $acl.SetAccessRule($rule)
-                    Set-Acl -Path $ZendeskConf -AclObject $acl
-                } catch {
-                    Write-Skip "파일 권한을 좁히지 못했다. 이 파일은 사용자만 읽도록 직접 확인한다: $ZendeskConf"
-                }
-                Write-Ok "인증 성공 ($who) — ~/.config/saltware/zendesk.conf 에 저장"
-            } elseif ($code -eq 401 -or $code -eq 403) {
-                Write-Bad "인증 거부 (HTTP $code). 이메일 또는 토큰이 맞지 않는다. 저장하지 않았다."
+            if ([string]::IsNullOrWhiteSpace($zdToken)) {
+                Write-Bad "토큰이 비었다. 저장하지 않았다. 다시 실행: pwsh -File scripts/onboarding.ps1"
             } else {
-                Write-Bad "Zendesk 응답 HTTP $code. 서브도메인과 네트워크를 확인한다. 저장하지 않았다."
+                $zdHost = if ($zdSub -like "*.zendesk.com") { $zdSub } else { "$zdSub.zendesk.com" }
+                Write-Host "  확인 중: https://$zdHost ..."
+                $pair = "$zdEmail/token:$zdToken"
+                $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
+                $code = 0
+                try {
+                    $resp = Invoke-WebRequest -Uri "https://$zdHost/api/v2/users/me.json" `
+                        -Headers @{ Authorization = "Basic $basic" } `
+                        -TimeoutSec 20 -UseBasicParsing -ErrorAction Stop
+                    $code = $resp.StatusCode
+                } catch {
+                    if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+                }
+
+                if ($code -eq 200) {
+                    $who = "?"
+                    try { $u = ($resp.Content | ConvertFrom-Json).user; $who = "$($u.name) ($($u.role))" } catch {}
+                    New-Item -ItemType Directory -Force -Path $ConfDir | Out-Null
+                    $lines = @(
+                        "# tiket Zendesk credentials. 이 파일 내용을 채팅·이슈·PR 에 붙여넣지 않는다."
+                        "# 다시 설정하려면: pwsh -File scripts/onboarding.ps1"
+                        "ZENDESK_SUBDOMAIN=$zdSub"
+                        "ZENDESK_EMAIL=$zdEmail"
+                        "ZENDESK_API_TOKEN=$zdToken"
+                    )
+                    Set-Content -Path $ZendeskConf -Value $lines -Encoding UTF8
+                    # NTFS 에는 chmod 가 없다. 상속을 끊고 현재 사용자만 남긴다.
+                    try {
+                        $acl = Get-Acl $ZendeskConf
+                        $acl.SetAccessRuleProtection($true, $false)
+                        $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) | Out-Null }
+                        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                            "$env:USERDOMAIN\$env:USERNAME", "FullControl", "Allow")
+                        $acl.SetAccessRule($rule)
+                        Set-Acl -Path $ZendeskConf -AclObject $acl
+                    } catch {
+                        Write-Skip "파일 권한을 좁히지 못했다. 사용자만 읽도록 직접 확인한다: $ZendeskConf"
+                    }
+                    Write-Ok "인증 성공 ($who) — ~/.config/saltware/zendesk.conf 에 저장"
+                } elseif ($code -eq 401 -or $code -eq 403) {
+                    Write-Bad "인증 거부 (HTTP $code). 이메일 또는 토큰이 맞지 않는다. 저장하지 않았다."
+                } else {
+                    Write-Bad "Zendesk 응답 HTTP $code. 서브도메인과 네트워크를 확인한다. 저장하지 않았다."
+                }
             }
         }
     }

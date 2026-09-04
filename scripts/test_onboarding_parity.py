@@ -78,6 +78,21 @@ class OnboardingParityTests(unittest.TestCase):
         self.assertIn("read -rs", SH.read_text(encoding="utf-8"))
         self.assertIn("-AsSecureString", PS1.read_text(encoding="utf-8"))
 
+    def test_skipping_requires_an_explicit_word(self) -> None:
+        """빈 Enter 로 건너뛰게 두면 대부분 그걸 누르고, 나중에 안 된다고 되돌아온다."""
+        for path in (SH, PS1):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn('"skip"', text, f"{path.name}: 명시적 skip 입력이 없다")
+            self.assertIn("값이 필요하다", text, f"{path.name}: 빈 입력 재질문이 없다")
+
+    def test_email_prompt_is_not_called_agent_email(self) -> None:
+        """이 저장소에서 '에이전트'는 AI 도구다. Zendesk 의 agent(상담원)와 겹치면
+        읽는 사람이 자기 이메일을 넣는 자리인지 알 수 없다."""
+        for path in (SH, PS1):
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("에이전트 이메일", text, f"{path.name}: 모호한 라벨")
+            self.assertIn("Zendesk 로그인 이메일", text, f"{path.name}: 명확한 라벨이 없다")
+
     def test_both_support_a_non_interactive_check_mode(self) -> None:
         self.assertIn("--check", SH.read_text(encoding="utf-8"))
         self.assertIn("$Check", PS1.read_text(encoding="utf-8"))

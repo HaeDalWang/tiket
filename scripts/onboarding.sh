@@ -77,47 +77,68 @@ elif [ ! -t 0 ]; then
   bad "터미널에서 직접 실행해야 자격증명을 입력받을 수 있다"
 else
   echo
-  echo "  Zendesk API 토큰이 필요하다. 아직 없으면 먼저 발급받는다:"
-  echo "    Zendesk 관리센터 → 앱 및 통합 → API → Zendesk API → 토큰 추가"
-  echo "  건너뛰려면 그냥 Enter 를 누른다."
+  echo "  Zendesk 토큰을 등록한다. 티켓을 번호로 가져오려면 필요하다."
+  echo "  토큰 발급: Zendesk 관리센터 → 앱 및 통합 → API → Zendesk API → 토큰 추가"
   echo
-  printf "  서브도메인 (예: saltware): "; read -r zd_sub
-  if [ -z "$zd_sub" ]; then
-    skip "자격증명 설정을 건너뛰었다. 나중에 다시 실행하면 된다."
+
+  # 빈 입력은 건너뛰기가 아니다. 건너뛰려면 skip 을 직접 입력해야 한다 —
+  # 필수 단계에 쉬운 탈출구를 두면 대부분 그걸 누르고, 나중에 안 된다고 되돌아온다.
+  ask_required() {  # ask_required <라벨> <힌트>; 값은 stdout, skip 이면 빈 값 + 리턴 1
+    local label="$1" hint="$2" value="" attempt=0
+    while [ "$attempt" -lt 3 ]; do
+      attempt=$((attempt + 1))
+      printf "  %s%s: " "$label" "$hint" >&2
+      read -r value
+      [ "$value" = "skip" ] && return 1
+      [ -n "$value" ] && { printf '%s' "$value"; return 0; }
+      printf "    값이 필요하다. 지금 등록할 수 없으면 skip 을 입력한다.\n" >&2
+    done
+    return 1
+  }
+
+  if ! zd_sub=$(ask_required "Zendesk 서브도메인" " (예: saltware)"); then
+    skip "토큰 등록을 건너뛰었다. 티켓 조회는 아직 안 된다."
+    skip "나중에 다시 실행: bash scripts/onboarding.sh"
   else
-    printf "  에이전트 이메일: "; read -r zd_email
-    printf "  API 토큰 (화면에 안 보인다): "; read -rs zd_token; echo
-
-    if [ -z "$zd_email" ] || [ -z "$zd_token" ]; then
-      bad "이메일 또는 토큰이 비었다. 저장하지 않았다."
+    # 'Zendesk 로그인 이메일'로 적는다. 이 저장소에서 '에이전트'는 AI 도구를 뜻하므로
+    # Zendesk 쪽 agent(상담원)와 겹쳐 읽는 사람이 자기 이메일인지 헷갈린다.
+    if ! zd_email=$(ask_required "Zendesk 로그인 이메일" " (본인 계정)"); then
+      skip "토큰 등록을 건너뛰었다. 나중에 다시 실행: bash scripts/onboarding.sh"
     else
-      case "$zd_sub" in
-        *.zendesk.com) zd_host="$zd_sub" ;;
-        *)             zd_host="${zd_sub}.zendesk.com" ;;
-      esac
-      printf "  확인 중: https://%s ...\n" "$zd_host"
-      resp=$(curl -sS -m 20 -w $'\n%{http_code}' \
-        -u "${zd_email}/token:${zd_token}" \
-        "https://${zd_host}/api/v2/users/me.json" 2>/dev/null)
-      code="${resp##*$'\n'}"; body="${resp%$'\n'*}"
+      printf "  API 토큰 (화면에 안 보인다): "
+      read -rs zd_token; echo
 
-      if [ "$code" = "200" ]; then
-        who=$(printf '%s' "$body" | jq -r '.user | "\(.name) (\(.role))"' 2>/dev/null || echo "?")
-        mkdir -p "$CONF_DIR" && chmod 700 "$CONF_DIR" 2>/dev/null
-        old_umask=$(umask); umask 077
-        cat > "$ZENDESK_CONF" << EOF
+      if [ -z "$zd_token" ]; then
+        bad "토큰이 비었다. 저장하지 않았다. 다시 실행: bash scripts/onboarding.sh"
+      else
+        case "$zd_sub" in
+          *.zendesk.com) zd_host="$zd_sub" ;;
+          *)             zd_host="${zd_sub}.zendesk.com" ;;
+        esac
+        printf "  확인 중: https://%s ...\n" "$zd_host"
+        resp=$(curl -sS -m 20 -w $'\n%{http_code}' \
+          -u "${zd_email}/token:${zd_token}" \
+          "https://${zd_host}/api/v2/users/me.json" 2>/dev/null)
+        code="${resp##*$'\n'}"; body="${resp%$'\n'*}"
+
+        if [ "$code" = "200" ]; then
+          who=$(printf '%s' "$body" | jq -r '.user | "\(.name) (\(.role))"' 2>/dev/null || echo "?")
+          mkdir -p "$CONF_DIR" && chmod 700 "$CONF_DIR" 2>/dev/null
+          old_umask=$(umask); umask 077
+          cat > "$ZENDESK_CONF" << EOF
 # tiket Zendesk credentials. 이 파일 내용을 채팅·이슈·PR 에 붙여넣지 않는다.
 # 다시 설정하려면: bash scripts/onboarding.sh
 ZENDESK_SUBDOMAIN=${zd_sub}
 ZENDESK_EMAIL=${zd_email}
 ZENDESK_API_TOKEN=${zd_token}
 EOF
-        umask "$old_umask"; chmod 600 "$ZENDESK_CONF"
-        ok "인증 성공 ($who) — ~/.config/saltware/zendesk.conf 에 저장 (권한 600)"
-      elif [ "$code" = "401" ] || [ "$code" = "403" ]; then
-        bad "인증 거부 (HTTP $code). 이메일 또는 토큰이 맞지 않는다. 저장하지 않았다."
-      else
-        bad "Zendesk 응답 HTTP ${code:-없음}. 서브도메인과 네트워크를 확인한다. 저장하지 않았다."
+          umask "$old_umask"; chmod 600 "$ZENDESK_CONF"
+          ok "인증 성공 ($who) — ~/.config/saltware/zendesk.conf 에 저장 (권한 600)"
+        elif [ "$code" = "401" ] || [ "$code" = "403" ]; then
+          bad "인증 거부 (HTTP $code). 이메일 또는 토큰이 맞지 않는다. 저장하지 않았다."
+        else
+          bad "Zendesk 응답 HTTP ${code:-없음}. 서브도메인과 네트워크를 확인한다. 저장하지 않았다."
+        fi
       fi
     fi
   fi
