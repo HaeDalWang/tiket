@@ -81,6 +81,20 @@ class AwsCustomerSkillConformanceTests(unittest.TestCase):
         cls.bash_bin, cls.bash_version = probe_bash()
 
     @classmethod
+    def setUpClass(cls) -> None:
+        """Auto-configure for `python -m unittest discover`, which never calls main().
+
+        main() calls configure() explicitly with the parsed --skill-dir before
+        building the suite; this only fills in the gap when nothing configured
+        it first, so an explicit main() call always wins.
+        """
+        if not hasattr(cls, "skill_dir"):
+            try:
+                cls.configure(discover_skill_dir(None))
+            except FileNotFoundError as exc:
+                raise unittest.SkipTest(str(exc))
+
+    @classmethod
     def bash_meets_floor(cls) -> bool:
         return bool(cls.bash_bin) and cls.bash_version is not None and cls.bash_version >= SKILL_BASH_FLOOR
 

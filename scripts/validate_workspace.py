@@ -466,7 +466,7 @@ def validate_policy_cards(errors: list[str]) -> tuple[int, int]:
         if not (ROOT / "policy" / reference).is_file():
             fail(errors, f"routing references missing card: {reference}")
 
-    if (ROOT / ".git").is_dir():
+    if (ROOT / ".git").exists():
         result = subprocess.run(
             ["git", "-c", "core.quotePath=false", "ls-files", "policy/inbox"],
             cwd=ROOT,
@@ -1083,7 +1083,7 @@ def validate_deidentified_repository(errors: list[str]) -> None:
                     f"possible tracked customer {label}: {relative}; value intentionally not printed",
                 )
 
-    if (ROOT / ".git").is_dir():
+    if (ROOT / ".git").exists():
         result = subprocess.run(
             ["git", "check-ignore", "-q", ".private/customer-map.md"],
             cwd=ROOT,
@@ -1212,7 +1212,7 @@ def validate_ascii_paths(errors: list[str]) -> int:
             return False
         return not relative.isascii()
 
-    if (ROOT / ".git").is_dir():
+    if (ROOT / ".git").exists():
         listed = subprocess.run(
             ["git", "-c", "core.quotePath=false", "ls-files", "-z"],
             cwd=ROOT,
@@ -1348,7 +1348,7 @@ def validate_local_only_customer_data(errors: list[str]) -> None:
     the ignore rule (ships with the repository) and the pre-push hook (needs one
     local activation command).
     """
-    if not (ROOT / ".git").is_dir():
+    if not (ROOT / ".git").exists():
         return
 
     probe = "customers/CUST-001/profile.md"
