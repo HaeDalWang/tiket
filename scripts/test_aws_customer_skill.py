@@ -53,10 +53,47 @@ def probe_bash() -> tuple[str, tuple[int, ...] | None]:
         return binary, None
 
 
+def resolve_marker_skill_dir() -> Path | None:
+    """Resolve the copy that csg-login's credential_process actually points at.
+
+    credential_process lives in the single machine-wide ~/.aws/config, so this is
+    the copy that executes at runtime regardless of which agent started the
+    session (see the copy-drift note in ONBOARDING.md and
+    agents/install-verification.md). Prefer it over the fixed candidate list below
+    so this conformance test can never silently validate an unrelated copy while
+    the one that actually runs has drifted or gone missing.
+    """
+    try:
+        result = subprocess.run(
+            ["aws", "configure", "get", "profile.csg-login.credential_process"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return None
+    if result.returncode != 0:
+        return None
+    script_path = result.stdout.strip()
+    if not script_path:
+        return None
+    skill_dir = Path(script_path).expanduser().resolve().parent
+    if (skill_dir / "SKILL.md").is_file():
+        return skill_dir
+    return None
+
+
 def discover_skill_dir(explicit: str | None) -> Path:
     if explicit:
         return Path(explicit).expanduser().resolve()
 
+    marker_dir = resolve_marker_skill_dir()
+    if marker_dir is not None:
+        return marker_dir
+
+    # csg-login marker absent or unresolved: fall back to a fixed search order.
+    # This path exists so the test is still runnable before first login, not as
+    # a substitute for the marker once it is set up.
     home = Path.home()
     candidates = (
         home / ".hermes/skills" / SKILL_NAME,
