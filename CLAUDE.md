@@ -17,7 +17,7 @@ This repository stores de-identified customer-ticket context, evidence, decision
 ## Start and route
 
 1. Read `agents/task-router.md` and classify the task as `quick`, `standard`, or `high-risk`.
-2. For a customer ticket, read `customers/<customer-ref>/profile.md` first. If absent, create a de-identified minimum profile from `templates/customer-profile.md` before drafting.
+2. For a customer ticket, record work in `tickets/<ticket-id>.md` from `templates/ticket-intake.md`. `tickets/` is local-only and holds real customer content. Read `customers/<customer-ref>/profile.md` when one exists; create a profile only when contract, billing, or access scope is actually in question, not as a precondition for answering.
 3. Search `policy/_routing.md` and load only matching cards. A `draft` card cannot create a commitment or authorize action.
 4. Select capabilities through `agents/capability-catalog.md`; verify runtime readiness instead of inventing commands.
 5. Load only the router-selected evidence, reply, change, PoC, or trap modules. Load a skill only when its direct trigger matches and repository modules do not already provide the procedure.

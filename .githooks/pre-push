@@ -15,7 +15,7 @@ remote_url="$2"
 zero="0000000000000000000000000000000000000000"
 
 # Paths that must never leave the local workspace.
-LOCAL_ONLY='^(customers/CUST-|\.private/|policy/raw/)'
+LOCAL_ONLY='^(customers/CUST-|tickets/|\.private/|policy/raw/)'
 INBOX='^policy/inbox/'
 INBOX_ALLOWED='^policy/inbox/README\.md$'
 

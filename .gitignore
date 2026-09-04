@@ -34,6 +34,9 @@ policy/inbox/*
 customers/CUST-*
 !customers/_index.md
 
+# Ticket working records. Real customer content, local only.
+tickets/
+
 # 에이전트별 로컬 설정·작업공간
 .claude/settings.local.json
 .claude/worktrees/
