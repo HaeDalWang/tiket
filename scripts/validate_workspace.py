@@ -316,16 +316,43 @@ def read_text(relative: str, errors: list[str]) -> str:
         return ""
 
 
+def gitignored_relatives(candidates: list[Path]) -> set[str]:
+    """git 이 무시하는 경로들. 판단은 git 에게 맡긴다.
+
+    무시되는 파일은 공용 저장소에 도달할 수 없으므로 유출 스캔의 대상이 아니다.
+    디렉터리 이름을 하드코딩하면(`.private` 처럼) 다음에 추가되는 로컬 전용 경로마다
+    같은 오탐이 반복된다 — `tickets/` 가 정확히 그렇게 걸렸다.
+
+    git 을 못 쓰면 빈 집합을 돌려주어 전부 스캔한다(fail closed). 스캔 범위가 넓어
+    오탐이 날지언정, 봐야 할 파일을 조용히 건너뛰지는 않는다.
+    """
+    if not (ROOT / ".git").exists() or not candidates:
+        return set()
+    relatives = [str(path.relative_to(ROOT)) for path in candidates]
+    result = subprocess.run(
+        ["git", "check-ignore", "--stdin"],
+        cwd=ROOT,
+        input="\n".join(relatives),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    # 0 = 일부가 무시됨, 1 = 무시되는 것 없음. 그 외는 git 쪽 문제이므로 전부 스캔한다.
+    if result.returncode not in (0, 1):
+        return set()
+    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
+
 def iter_text_files() -> list[Path]:
-    files: list[Path] = []
+    candidates: list[Path] = []
     for path in ROOT.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
             continue
-        relative_parts = path.relative_to(ROOT).parts
-        if ".git" in relative_parts or ".private" in relative_parts:
+        if ".git" in path.relative_to(ROOT).parts:
             continue
-        files.append(path)
-    return files
+        candidates.append(path)
+    ignored = gitignored_relatives(candidates)
+    return [path for path in candidates if str(path.relative_to(ROOT)) not in ignored]
 
 
 def validate_policy_cards(errors: list[str]) -> tuple[int, int]:

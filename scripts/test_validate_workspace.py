@@ -14,6 +14,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+# 문서용 예약 대역(RFC 5737 TEST-NET-3). 리터럴로 적으면 이 파일 자체가
+# 고객 IP 스캔에 걸리므로 쪼개서 조립한다.
+DOC_IP = "203.0" + ".113.77"
+
+
 class WorkspaceValidatorTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tempdir = tempfile.TemporaryDirectory(prefix="tiket-validator-test-")
@@ -21,8 +26,21 @@ class WorkspaceValidatorTests(unittest.TestCase):
         shutil.copytree(
             ROOT,
             self.repo,
-            ignore=shutil.ignore_patterns(".git", ".private", "__pycache__", ".venv"),
+            ignore=self._fixture_ignore,
         )
+
+    @staticmethod
+    def _fixture_ignore(src_dir: str, names: list[str]) -> set[str]:
+        """픽스처는 깨끗한 clone 을 흉내낸다.
+
+        최상위 `tickets/` 는 실명 고객 자료를 담는 로컬 전용 디렉터리라 가져오지 않는다 —
+        가져오면 로컬에 티켓이 있는 사람에게서만 테스트가 깨진다. 이름으로 거르면
+        `examples/CUST-900/tickets/` 까지 같이 사라지므로 최상위에서만 거른다.
+        """
+        skip = {".git", ".private", "__pycache__", ".venv"} & set(names)
+        if Path(src_dir).resolve() == ROOT.resolve() and "tickets" in names:
+            skip.add("tickets")
+        return skip
 
     def tearDown(self) -> None:
         self.tempdir.cleanup()
@@ -62,6 +80,28 @@ class WorkspaceValidatorTests(unittest.TestCase):
         self.git("config", "user.name", "test")
         if activate_hooks:
             self.git("config", "core.hooksPath", ".githooks")
+
+    def test_gitignored_local_work_is_not_scanned_as_tracked(self) -> None:
+        """tickets/ 는 실명 고객 자료를 일부러 담는다. gitignore 되어 공용 저장소에
+        도달할 수 없으므로 유출 스캔 대상이 아니다. 여기서 잡히면 실제 티켓 작업을
+        시작하는 순간부터 validator 가 항상 FAIL 이고, 사람은 곧 무시하게 된다."""
+        self.init_git()
+        tickets = self.repo / "tickets"
+        tickets.mkdir(exist_ok=True)
+        (tickets / "163953.md").write_text(
+            f"# 163953\n접속 IP {DOC_IP} 확인\n", encoding="utf-8"
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("tickets/163953.md", result.stdout)
+
+    def test_tracked_file_with_a_customer_ip_is_still_rejected(self) -> None:
+        """위 예외가 스캔 자체를 끄지 않았는지 확인한다."""
+        self.init_git()
+        (self.repo / "playbooks/_probe.md").write_text(
+            f"# probe\n접속 IP {DOC_IP} 확인\n", encoding="utf-8"
+        )
+        self.assert_rejected(self.run_validator(), "possible tracked customer IPv4 address")
 
     def test_non_ascii_repository_path_is_rejected(self) -> None:
         (self.repo / "templates/한글파일.md").write_text("x\n", encoding="utf-8")

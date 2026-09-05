@@ -18,19 +18,20 @@ AI에게 고객 티켓을 그냥 맡기면 세 가지가 문제가 된다.
 
 ```mermaid
 flowchart TD
-    A(["고객 티켓 도착"]) --> B["작업 라우터<br/>quick / standard / high-risk 분류"]
-    B --> C["관련 규정 카드만 로드<br/>policy/_routing.md"]
+    A(["고객 티켓 도착"]) --> A2["티켓 번호로 가져오기<br/>scripts/fetch-ticket.sh"]
+    A2 --> A3{"답할 준비가 됐나"}
+    A3 -->|"C · 대상 불명"| A4(["되물음 질문지<br/>답변 초안 쓰지 않음"])
+    A3 -->|"A · 특정됨<br/>B · 일부 특정"| C["관련 규정 카드만 로드<br/>policy/_routing.md"]
     C --> D["read-only 조사<br/>공식 문서 + 과거 유사 티켓"]
     D --> G1{{"AWS 계정 쓰기 시도?"}}
     G1 -->|예| G1X["서버 쪽에서 차단<br/>read-only 브로커가 강제"]
     G1 -->|아니오| E["근거 기록<br/>확인됨 / 추측 / 모름 분리"]
     G1X -.->|read-only로 계속| E
-    E --> F["Decision Packet + Reply Brief 생성"]
-    F --> H["회신 초안"]
+    E --> H["회신 초안"]
     H --> I{"사람 검수"}
     I -->|반려| E
     I -->|승인| J(["사람이 발송"])
-    J --> K["실제 발송문 + 고객 반응 append<br/>다음 티켓의 근거가 됨"]
+    J --> K["실제 발송문 + 고객 반응 기록<br/>다음 티켓의 근거가 됨"]
 
     style G1X fill:#5a1f1f,stroke:#e06666,color:#fff
     style J fill:#1f3d1f,stroke:#6aa84f,color:#fff
@@ -43,6 +44,7 @@ flowchart TD
 | AWS 계정 쓰기 시도 → 차단 | AI 판단이 아니라 **브로커가 서버에서** 강제하는 read-only. AI 실수와 무관하게 안 뚫린다 |
 | 근거 기록 | `확인됨`으로 적으려면 실제 공식 문서를 찾아야 한다. 못 찾으면 `추측`/`모름`으로만 남고, 그 상태로는 확정 답변을 못 만든다 |
 | 사람 검수 → 발송 | AI는 초안까지만 만든다. 이메일·Zendesk 댓글을 직접 보내는 경로 자체가 없다 |
+| 준비도 분류(A/B/C) | 정보가 부족한 티켓에 그럴듯한 답을 지어내는 대신, 되물음을 산출물로 낸다 |
 
 ## 구조
 
@@ -51,32 +53,37 @@ flowchart TD
 | [`ONBOARDING.md`](ONBOARDING.md) | 신규 엔지니어가 clone부터 첫 연습까지 따라가는 문서 |
 | `CLAUDE.md`, `AGENTS.md`, `.kiro/steering/` | 에이전트별 진입점. 내용은 같은 규칙을 가리킨다 |
 | `agents/` | 능력 카탈로그, 설치 검증, MCP 설정의 유일한 정본 |
-| `customers/` | 고객사 프로필·티켓. clone 직후엔 비어 있고 실제 업무를 하면서 채워진다 |
+| `tickets/` | 티켓 처리 기록. 티켓 하나당 파일 하나. **Git에 올라가지 않는다** |
+| `customers/` | 고객사 계약·청구·담당자 프로필. 필요할 때만 만든다 |
 | `examples/` | 실제 워크플로우를 비식별화해 재구성한 견본 티켓 |
 | `policy/` | 대용량 회사 규정의 라우팅·카드·원본 |
 | `playbooks/` | 근거 검증, 회신 작성, 인프라 작업, 알려진 함정 |
-| `templates/` | 신규 고객·티켓·Decision Packet·Reply Brief 시작점 |
+| `templates/` | 티켓 기록·고객 프로필 시작점 |
 | `handoff/` | 별도 프로젝트에 PoC를 의뢰하고 결과를 받는 창구 |
 | `scripts/` | 저장소 구조·보안 경계를 자동 검증하는 도구 |
 
-`customers/`는 빈 폴더로 시작한다. 이 저장소는 사례집이 아니라 워크스페이스라, 티켓을 처리하면서 그때그때 쌓인다.
-Git에는 올라가지 않는다(아래 보안 참고) — 엔지니어마다 로컬에 따로 쌓이고, 서로 동기화되지 않는다.
+`tickets/` 와 `customers/` 는 **빈 채로 시작한다.** 이 저장소는 사례집이 아니라 워크스페이스라,
+티켓을 처리하면서 그때그때 쌓인다. 둘 다 Git에 올라가지 않는다(아래 보안 참고) — 엔지니어마다
+로컬에 따로 쌓이고 서로 동기화되지 않는다.
 
 ## 시작하기
 
 처음이면 [`ONBOARDING.md`](ONBOARDING.md)부터. clone, 도구 확인, 스킬 설치, 첫 합성 티켓 연습까지 순서대로 있다.
 
 ```bash
-python3 scripts/validate_workspace.py
+bash scripts/onboarding.sh          # macOS / Linux
+pwsh -File scripts/onboarding.ps1   # Windows
 ```
 
-구조·보안 경계가 정상인지 확인하는 명령이다. `PASS`가 아니면 아래 줄에 뭐가 빠졌는지 나온다.
+필요한 도구, 실수 방지 장치, Zendesk 연결, 저장소 검증을 한 번에 확인한다.
+확인만 하려면 `--check` (PowerShell 은 `-Check`) 를 붙인다 — 아무것도 입력받지 않는다.
 
 ## 보안 경계 (요약)
 
 - **초안까지만.** 발송·댓글 등록은 사람만 한다.
 - **고객 AWS는 read-only.** 계정 역할에 관리자 권한이 있어도 세션은 서버에서 read-only로 강제된다.
-- **고객 데이터는 Git에 안 올라간다.** `customers/`는 gitignore + push guard 이중으로 막혀 있다.
+- **고객 데이터는 Git에 안 올라간다.** `tickets/` 와 `customers/` 는 gitignore + push guard 이중으로 막혀 있고, 강제 추가해도 push 단계에서 걸린다.
 - **비용은 FitCloud 정제값만.** AWS 원본 청구 수치를 고객에게 노출하지 않는다.
 
 세부 규칙과 근거는 `CLAUDE.md`, 배포·remote 구성은 `DISTRIBUTION.md`를 따른다.
+이 프레임워크를 **왜 이렇게 만들었는지**는 `design/` 에 기록한다 — 결정과 버린 선택지, 아직 안 정한 것.
