@@ -21,6 +21,7 @@ Classify first, then load only the listed modules. Never load every policy, play
 
 ## Output modules
 
+- Ticket outputs (decide this first): `playbooks/ticket-outputs.md`
 - Reply drafting: `playbooks/reply-writing-rules.md`
 - Reply presentation profiles: `playbooks/reply-style.md`
 - Semantic convergence: `templates/decision-packet.md`
