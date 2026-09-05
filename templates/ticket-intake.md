@@ -8,7 +8,11 @@ tickets/<티켓번호>.md 로 복사해서 쓴다. tickets/ 는 gitignore + pre-
 실제 고객사명·계정ID를 그대로 적어도 된다. 마스킹하지 않는다.
 
 원본 스레드는 저장하지 않는다. 다시 필요하면 그때 fetch 한다:
-  bash <ticket-answer 스킬 경로>/scripts/fetch-ticket.sh <번호> --json
+  bash scripts/fetch-ticket.sh <번호>
+
+이미지가 있다고 나오면 반드시 받아서 본다. 스크린샷 안에 설정값·에러·경고 배너가
+들어 있는 경우가 많고, 그건 본문 텍스트에 전혀 안 나온다:
+  bash scripts/fetch-ticket.sh <번호> --images /tmp/t<번호>
 -->
 
 # <번호> · <고객사명> · <한 줄 제목>

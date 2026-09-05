@@ -130,6 +130,27 @@ class FetchTicketParityTests(unittest.TestCase):
         self.assertIn("--json", FETCH_SH.read_text(encoding="utf-8"))
         self.assertIn("$Json", FETCH_PS1.read_text(encoding="utf-8"))
 
+    def test_both_count_inline_body_images_not_just_attachments(self) -> None:
+        """Zendesk 는 본문에 붙여넣은 이미지를 attachments 에 안 넣기도 한다.
+        attachments 만 세면 이미지 4장짜리 티켓이 '첨부 없음'으로 보인다 —
+        읽는 쪽이 자기가 뭘 못 봤는지 모르게 되는 게 이 검사가 막는 것이다."""
+        for path in (FETCH_SH, FETCH_PS1):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("/attachments/token/", text, f"{path.name}: 본문 이미지 URL 탐지 없음")
+            self.assertIn("본문 삽입", text, f"{path.name}: 인라인 개수를 따로 안 알림")
+
+    def test_both_download_images_only_on_demand(self) -> None:
+        for path, flag in ((FETCH_SH, "--images"), (FETCH_PS1, "-Images")):
+            self.assertIn(flag, path.read_text(encoding="utf-8"), f"{path.name}: {flag} 없음")
+
+    def test_credentials_go_only_to_our_own_zendesk_host(self) -> None:
+        """티켓 본문에는 고객사 헬프데스크 URL 이 섞여 있다. 거기로 Authorization 을
+        보내면 우리 Zendesk 토큰을 제3자에게 넘기는 것이 된다."""
+        sh = FETCH_SH.read_text(encoding="utf-8")
+        self.assertIn('grep -q "^https://${HOST}/"', sh, "sh: 호스트 검사 없이 인증 전송")
+        ps = FETCH_PS1.read_text(encoding="utf-8")
+        self.assertIn('StartsWith("https://$zdHost/")', ps, "ps1: 호스트 검사 없이 인증 전송")
+
     def test_neither_writes_the_thread_to_disk(self) -> None:
         """원본 스레드에는 실명·계정ID가 들어 있다. 어디에 남길지는 호출자가 정한다."""
         for path in (FETCH_SH, FETCH_PS1):

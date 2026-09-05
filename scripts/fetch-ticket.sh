@@ -7,8 +7,9 @@
 # 환경변수가 설정돼 있으면 그쪽이 우선한다 (CI·일회성 실행용).
 #
 # 사용:
-#   bash scripts/fetch-ticket.sh <티켓번호>          사람이 읽는 형식
-#   bash scripts/fetch-ticket.sh <티켓번호> --json   원본 JSON
+#   bash scripts/fetch-ticket.sh <티켓번호>                 사람이 읽는 형식
+#   bash scripts/fetch-ticket.sh <티켓번호> --json          원본 JSON
+#   bash scripts/fetch-ticket.sh <티켓번호> --images <디렉터리>  본문 이미지 내려받기
 #
 # 출력은 stdout 으로만 흘린다. 파일로 저장하지 않는다 — 어디에 남길지는 호출자가 정한다.
 
@@ -23,14 +24,20 @@ conf_value() {
 
 TICKET_ID="${1:-}"
 MODE="${2:-text}"
+IMAGE_DIR=""
+if [ "${2:-}" = "--images" ]; then
+    MODE="text"
+    IMAGE_DIR="${3:-}"
+    [ -n "$IMAGE_DIR" ] || { echo "--images 에는 저장할 디렉터리가 필요하다." >&2; exit 1; }
+fi
 
 if [[ -z "$TICKET_ID" || ! "$TICKET_ID" =~ ^[0-9]+$ ]]; then
     echo "사용법: $0 <티켓번호> [--json]" >&2
     echo "  티켓번호는 숫자만." >&2
     exit 1
 fi
-if [[ -n "${2:-}" && "$2" != "--json" ]]; then
-    echo "알 수 없는 옵션: $2 (--json 만 지원)" >&2
+if [[ -n "${2:-}" && "$2" != "--json" && "$2" != "--images" ]]; then
+    echo "알 수 없는 옵션: $2 (--json, --images 만 지원)" >&2
     exit 1
 fi
 
@@ -128,11 +135,43 @@ echo "$COMMENTS_JSON" | jq -r --argjson users "$USERS_JSON" '
      else "" end) + "\n"'
 
 # 첨부는 본문 텍스트에 안 들어온다. 존재만 알리고 내용 확인은 사람에게 넘긴다.
+#
+# Zendesk 는 본문에 붙여넣은 이미지를 attachments 배열에 안 넣고 본문 마크다운 링크로만
+# 남기는 경우가 있다. attachments 만 세면 이미지가 4장 있어도 "첨부 없음"으로 보이고,
+# 읽는 쪽은 자기가 뭘 못 봤는지조차 모른 채 답변을 쓰게 된다. 둘 다 센다.
 ATTACH_N=$(echo "$COMMENTS_JSON" | jq '[.comments[].attachments[]?] | length')
-if [[ "$ATTACH_N" -gt 0 ]]; then
+INLINE_URLS=$(echo "$COMMENTS_JSON" | jq -r '.comments[].body | scan("https://[^)[:space:]]+/attachments/token/[^)[:space:]]+")' | sort -u)
+INLINE_N=$(printf '%s' "$INLINE_URLS" | grep -c . || true)
+TOTAL_IMG=$((ATTACH_N + INLINE_N))
+
+if [ -n "$IMAGE_DIR" ] && [ "$INLINE_N" -gt 0 ]; then
+    mkdir -p "$IMAGE_DIR"
     echo ""
     echo "════════════════════════════════════════════════════════════"
-    echo "※ 첨부 ${ATTACH_N}건. 이미지·로그 내용은 위 텍스트에 없다."
-    echo "  답변에 그 정보가 필요하면 추측하지 말고 원본을 직접 확인한다."
+    echo "본문 이미지 ${INLINE_N}건 내려받기 → ${IMAGE_DIR}"
+    i=0
+    while IFS= read -r url; do
+        [ -n "$url" ] || continue
+        i=$((i + 1))
+        # 자격증명은 우리 Zendesk 호스트에만 보낸다. 고객사 헬프데스크 등 다른 호스트로
+        # Authorization 헤더를 흘리면 우리 토큰을 제3자에게 넘기는 것이 된다.
+        if printf '%s' "$url" | grep -q "^https://${HOST}/"; then
+            curl -sS -L -u "$AUTH" -o "${IMAGE_DIR}/img${i}.png" "$url" || true
+        else
+            curl -sS -L -o "${IMAGE_DIR}/img${i}.png" "$url" || true
+        fi
+        if [ -s "${IMAGE_DIR}/img${i}.png" ]; then
+            echo "  img${i}.png  ←  $(printf '%s' "$url" | cut -c1-60)..."
+        else
+            echo "  img${i}.png  실패  ←  $(printf '%s' "$url" | cut -c1-60)..."
+        fi
+    done <<< "$INLINE_URLS"
+    echo "════════════════════════════════════════════════════════════"
+elif [ "$TOTAL_IMG" -gt 0 ]; then
+    echo ""
+    echo "════════════════════════════════════════════════════════════"
+    echo "※ 이미지 ${TOTAL_IMG}건 (첨부 ${ATTACH_N} · 본문 삽입 ${INLINE_N})."
+    echo "  내용은 위 텍스트에 없다. 답변에 그 정보가 필요하면 추측하지 말고 받아서 본다:"
+    echo "    bash scripts/fetch-ticket.sh ${TICKET_ID} --images <저장할디렉터리>"
     echo "════════════════════════════════════════════════════════════"
 fi

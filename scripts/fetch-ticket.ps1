@@ -6,10 +6,12 @@
 # 사용:
 #   pwsh -File scripts/fetch-ticket.ps1 <티켓번호>
 #   pwsh -File scripts/fetch-ticket.ps1 <티켓번호> -Json
+#   pwsh -File scripts/fetch-ticket.ps1 <티켓번호> -Images <디렉터리>
 
 param(
     [Parameter(Mandatory = $true, Position = 0)][string]$TicketId,
-    [switch]$Json
+    [switch]$Json,
+    [string]$Images
 )
 
 $ErrorActionPreference = "Stop"
@@ -137,11 +139,50 @@ foreach ($c in $comments) {
 }
 
 # 첨부는 본문 텍스트에 안 들어온다. 존재만 알리고 내용 확인은 사람에게 넘긴다.
+#
+# Zendesk 는 본문에 붙여넣은 이미지를 attachments 배열에 안 넣고 본문 마크다운 링크로만
+# 남기는 경우가 있다. attachments 만 세면 이미지가 4장 있어도 "첨부 없음"으로 보이고,
+# 읽는 쪽은 자기가 뭘 못 봤는지조차 모른 채 답변을 쓰게 된다. 둘 다 센다.
 $attachN = ($comments | ForEach-Object { if ($_.attachments) { $_.attachments.Count } else { 0 } } | Measure-Object -Sum).Sum
-if ($attachN -gt 0) {
+$inlineUrls = @()
+foreach ($c in $comments) {
+    if ($c.body) {
+        $m = [regex]::Matches($c.body, 'https://[^)\s]+/attachments/token/[^)\s]+')
+        foreach ($x in $m) { $inlineUrls += $x.Value }
+    }
+}
+$inlineUrls = $inlineUrls | Sort-Object -Unique
+$inlineN = $inlineUrls.Count
+$totalImg = $attachN + $inlineN
+
+if ($Images -and $inlineN -gt 0) {
+    New-Item -ItemType Directory -Force -Path $Images | Out-Null
     Write-Output ""
     Write-Output $bar
-    Write-Output "※ 첨부 ${attachN}건. 이미지·로그 내용은 위 텍스트에 없다."
-    Write-Output "  답변에 그 정보가 필요하면 추측하지 말고 원본을 직접 확인한다."
+    Write-Output "본문 이미지 ${inlineN}건 내려받기 → $Images"
+    $i = 0
+    foreach ($url in $inlineUrls) {
+        $i++
+        $dest = Join-Path $Images "img$i.png"
+        try {
+            # 자격증명은 우리 Zendesk 호스트에만 보낸다. 고객사 헬프데스크 등 다른 호스트로
+            # Authorization 헤더를 흘리면 우리 토큰을 제3자에게 넘기는 것이 된다.
+            if ($url.StartsWith("https://$zdHost/")) {
+                Invoke-WebRequest -Uri $url -Headers $headers -OutFile $dest -TimeoutSec 60 -ErrorAction Stop
+            } else {
+                Invoke-WebRequest -Uri $url -OutFile $dest -TimeoutSec 60 -ErrorAction Stop
+            }
+            Write-Output "  img$i.png  ←  $($url.Substring(0, [Math]::Min(60, $url.Length)))..."
+        } catch {
+            Write-Output "  img$i.png  실패  ←  $($url.Substring(0, [Math]::Min(60, $url.Length)))..."
+        }
+    }
+    Write-Output $bar
+} elseif ($totalImg -gt 0) {
+    Write-Output ""
+    Write-Output $bar
+    Write-Output "※ 이미지 ${totalImg}건 (첨부 ${attachN} · 본문 삽입 ${inlineN})."
+    Write-Output "  내용은 위 텍스트에 없다. 답변에 그 정보가 필요하면 추측하지 말고 받아서 본다:"
+    Write-Output "    pwsh -File scripts/fetch-ticket.ps1 $TicketId -Images <저장할디렉터리>"
     Write-Output $bar
 }
