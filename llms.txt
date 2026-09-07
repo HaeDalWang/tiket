@@ -1,0 +1,90 @@
+# tiket — Agent Guide: Onboarding a New Engineer
+
+> Scope: this file covers exactly one job — helping a human get this workspace working on
+> their machine. It is **not** the ticket-handling contract. For ticket work, read
+> `CLAUDE.md` and route through `agents/task-router.md` instead.
+>
+> The human-facing procedure is `ONBOARDING.md`. This file tells you how to drive it.
+
+Report to the engineer in Korean. Keep this file's rules in English.
+
+## Your role
+
+You run the checks and interpret the output. The engineer does everything interactive or
+credential-bearing. You are the one who notices that step 3 passed but step 4 was never run,
+and says so — a human following a checklist alone usually does not.
+
+| Step | You run | The engineer does |
+|---|---|---|
+| 1. clone | — | `git clone` |
+| 2. tools + Zendesk | `bash scripts/onboarding.sh --check` | `bash scripts/onboarding.sh` (interactive) |
+| 3. MCP / AWS docs | `python3 scripts/verify_mcp_servers.py` | `brew install uv` if asked |
+| 4. customer AWS skill | `python3 scripts/test_aws_customer_skill.py` | clone + `install.sh`, request access |
+| 5. login | — | Slack browser login |
+| 6. practice | pose the synthetic ticket | judge the 7 behaviors |
+
+Windows: `pwsh -File scripts/onboarding.ps1 -Check`.
+
+## Never
+
+- **Never run `scripts/onboarding.sh` without `--check`.** It prompts for a Zendesk
+  subdomain, email, and API token. Only the engineer answers those. `--check` takes no input.
+- Never read, print, echo, or `cat` `~/.config/saltware/zendesk.conf`,
+  `~/.config/saltware/credential-broker.conf`, or any token value. Check existence only.
+- Never ask the engineer to paste a token into the chat. It goes into the script's prompt.
+- Never say customer AWS access works before step 4 passes and step 5 has been done.
+  Step 3 passing means AWS *documentation* access only.
+- Never `git add -f` anything under `tickets/` or `customers/`.
+
+## Reading the results
+
+`bash scripts/onboarding.sh --check` — 7 steps: `required-tools`, `agents`, `push-guard`,
+`mcp`, `customer-skill`, `zendesk-credentials`, `workspace-validation`. Each FAIL line
+carries its own fix. Report which steps failed and quote the fix, do not invent one.
+
+`python3 scripts/verify_mcp_servers.py`
+
+| Final line | Exit | Next |
+|---|---|---|
+| `mcp readiness: PASS (N servers)` | 0 | continue |
+| `mcp readiness: UNVERIFIED (...)` | 2 | not a config error — see below |
+| `mcp readiness: FAIL` | 1 | stop, surface the output verbatim |
+
+On UNVERIFIED the script always prints both hints (`brew install uv` and the transient-network
+note) regardless of cause, so the hints do not tell you which one it was. The cause is in the
+`- ` detail lines printed **above** the verdict. Read those, and settle it with `command -v uv`:
+absent means install it, present means retry once for the network.
+
+`python3 scripts/test_aws_customer_skill.py` — read the **final line**, not the exit code.
+
+| Final line | Meaning | Next |
+|---|---|---|
+| `PASS` | conforming | continue to login |
+| `PASS WITH WARNINGS` | this machine's bash is too old; skill unusable here | tell them to DM 정지우; skip live AWS steps, finish the rest |
+| `FAIL` | local install problem | stop, surface the output |
+
+Also available: `python3 scripts/validate_workspace.py` (boundary and de-identification)
+and `python3 scripts/render_agent_configs.py --check` (host configs match the manifest).
+
+## How to report
+
+After each run, give the engineer four things in Korean:
+
+1. Step name and result.
+2. What that result actually means for what they can do next.
+3. The exact next command, or the exact person to contact.
+4. What is still not working, stated plainly, if anything.
+
+Do not report "온보딩 완료" while any step is failing or unrun. Say which one and why.
+
+## Who to contact
+
+- Skill repository access denied, or `PASS WITH WARNINGS` — 정지우 (external skill owner).
+- An agent fails any of the 7 practice behaviors in `ONBOARDING.md` §6 — a senior engineer.
+  Do not grade your own run of that test; the engineer judges it.
+
+## After onboarding passes
+
+Onboarding ends here. For actual ticket work the entry points are `CLAUDE.md`,
+`AGENTS.md`, or `.kiro/steering/` depending on the agent, and routing goes through
+`agents/task-router.md`. Do not restate their rules from this file.

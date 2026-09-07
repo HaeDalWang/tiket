@@ -16,7 +16,7 @@ pwsh -File scripts/onboarding.ps1   # Windows
 
 또는 에이전트한테 해달라고 하기
 ```
-온보딩 절차를 보고 검증해줘
+온보딩 절차(llms.txt)를 보고 검증해줘
 ```
 
 **2. 에이전트에게 맡기기**
