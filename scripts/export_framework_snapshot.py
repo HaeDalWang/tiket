@@ -20,6 +20,7 @@ ROOT_FILES = {
     "DISTRIBUTION.md",
     "ONBOARDING.md",
     "README.md",
+    "TECHNICAL.md",
 }
 UPSTREAM_DIRS = {
     ".claude",

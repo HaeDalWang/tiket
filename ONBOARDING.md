@@ -200,6 +200,7 @@ Slack 로그인 창이 자동으로 열립니다. 로그인하면 끝입니다.
 | 뭘 읽어야 할지 모르겠음          | `agents/task-router.md`                |
 | 이 도구를 써도 되는지 모르겠음      | `agents/runtime-status.md`             |
 | 설치가 꼬였음                | `agents/install-verification.md`       |
+| 각 폴더가 어떻게 쓰이는지 알고 싶음 | `TECHNICAL.md`                    |
 
 
 ---

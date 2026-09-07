@@ -68,6 +68,7 @@ flowchart TD
 | 위치 | 역할 |
 |---|---|
 | [`ONBOARDING.md`](ONBOARDING.md) | 신규 엔지니어가 clone부터 첫 연습까지 따라가는 문서 |
+| [`TECHNICAL.md`](TECHNICAL.md) | **각 디렉터리가 언제 로드되고 어떻게 쌓이는지** — 구조 해설 |
 | `CLAUDE.md`, `AGENTS.md`, `.kiro/steering/` | 에이전트별 진입점. 내용은 같은 규칙을 가리킨다 |
 | `agents/` | 능력 카탈로그, 설치 검증, MCP 설정의 유일한 정본 |
 | `tickets/` | 티켓 처리 기록. 티켓 하나당 파일 하나. **Git에 올라가지 않는다** |
@@ -116,4 +117,5 @@ bash scripts/fetch-ticket.sh 163953 --images /tmp/t    # 이미지가 있다고 
 - **비용은 FitCloud 정제값만.** AWS 원본 청구 수치를 고객에게 노출하지 않는다.
 
 세부 규칙은 `CLAUDE.md`, 배포·remote 구성은 `DISTRIBUTION.md`, 신규 엔지니어는
-[`ONBOARDING.md`](ONBOARDING.md) 를 따른다.
+[`ONBOARDING.md`](ONBOARDING.md) 를 따른다. 각 디렉터리가 실제로 어떻게 동작하는지는
+[`TECHNICAL.md`](TECHNICAL.md) 에 있다.
