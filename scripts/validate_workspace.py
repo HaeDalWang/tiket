@@ -1085,6 +1085,10 @@ def validate_deidentified_repository(errors: list[str]) -> None:
         "[확인]",
         "[추측]",
         "[모름]",
+        # 0010: 출처 없는 [확인] 을 막는 문장. 이게 빠지면 등급이 장식이 된다.
+        "출처 없는 [확인] 은 [확인] 이 아니다",
+        "확인 방법:",
+        "유선으로 처리했으면",
     ]:
         if marker not in intake_template:
             fail(errors, f"ticket intake template missing marker: {marker}")
