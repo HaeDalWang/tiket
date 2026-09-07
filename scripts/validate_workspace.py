@@ -1073,6 +1073,22 @@ def validate_deidentified_repository(errors: list[str]) -> None:
     ]:
         if marker not in ticket_template:
             fail(errors, f"current ticket template missing marker: {marker}")
+    # 작업 지시서 형식 고정 (0009). 항목 나열로 되돌아가면 티켓을 옮겨 적은 것이 되고,
+    # 그럴 거면 실행자는 티켓을 본다 — 실제 피드백으로 한 번 폐기된 형태다.
+    intake_template = read_text("templates/ticket-intake.md", errors)
+    for marker in [
+        "## 작업 지시",
+        "[변경]",
+        "이 줄만 고치면 아래는 그대로 실행된다",
+        "되돌릴 근거",
+        "적용됐는지 확인한다",
+        "[확인]",
+        "[추측]",
+        "[모름]",
+    ]:
+        if marker not in intake_template:
+            fail(errors, f"ticket intake template missing marker: {marker}")
+
     evidence_template = read_text("templates/ticket-evidence.md", errors)
     for marker in ["reuse_policy: current-ticket", "[F1]", "[H1]", "[U1]", "reverify_when:"]:
         if marker not in evidence_template:
