@@ -27,7 +27,7 @@ STEP_NAMES=(
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # saltware-csg-skills 는 별도 저장소다. 저장소 안에 사본을 두지 않는 이유는
 # design/decisions/0014 참조 — EXTERNAL_ID 하드코딩, 버전 드리프트, 외부 소유.
-SKILL_REPO_URL="git@haedalwang:fitcloud/saltware-csg-skills.git"
+SKILL_REPO_URL="https://github.com/fitcloud/saltware-csg-skills.git"
 SKILL_REPO_CANDIDATES=(
   "${SALTWARE_CSG_SKILLS:-}"
   "$HOME/opensource/saltware-csg-skills"

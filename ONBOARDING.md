@@ -132,7 +132,7 @@ python3 scripts/verify_mcp_servers.py
 스킬은 별도 저장소(`saltware-csg-skills`)에 있습니다. **파일을 받는 게 아니라 저장소 접근 권한을 받으면 됩니다** — 한 번만 하면 그다음부터는 직접 받습니다.
 
 ```bash
-git clone git@haedalwang:fitcloud/saltware-csg-skills.git ~/opensource/saltware-csg-skills
+git clone https://github.com/fitcloud/saltware-csg-skills.git ~/opensource/saltware-csg-skills
 bash ~/opensource/saltware-csg-skills/install.sh
 ```
 

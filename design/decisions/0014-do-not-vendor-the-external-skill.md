@@ -9,7 +9,8 @@
   설정이 느리다. "그냥 워크스페이스에 미리 넣어두면 되지 않나"가 제안됐다.
 
 - **확인한 사실**:
-  - `saltware-csg-skills` 에는 **remote 가 있다** — `git@haedalwang:fitcloud/saltware-csg-skills.git`.
+  - `saltware-csg-skills` 에는 **remote 가 있다** — `https://github.com/fitcloud/saltware-csg-skills.git`
+    (회사 GitHub org, 엔지니어 계정만 접근 가능).
     다른 엔지니어가 직접 clone 할 수 있다. **병목은 배포가 아니라 저장소 접근 권한이다.**
     담당자에게 요청할 것은 파일이 아니라 접근이고, 그건 한 번만 하면 된다.
   - `install.sh` 에 **`EXTERNAL_ID`** 가 하드코딩돼 있다(`install.sh:535` 부근).

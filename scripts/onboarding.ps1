@@ -30,7 +30,7 @@ $Root = Split-Path (Split-Path $MyInvocation.MyCommand.Path -Parent) -Parent
 $UserHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
 # saltware-csg-skills 는 별도 저장소다. 저장소 안에 사본을 두지 않는 이유는
 # design/decisions/0014 참조 — EXTERNAL_ID 하드코딩, 버전 드리프트, 외부 소유.
-$SkillRepoUrl = "git@haedalwang:fitcloud/saltware-csg-skills.git"
+$SkillRepoUrl = "https://github.com/fitcloud/saltware-csg-skills.git"
 $SkillRepoCandidates = @(
   $env:SALTWARE_CSG_SKILLS
   (Join-Path $UserHome "opensource/saltware-csg-skills")
