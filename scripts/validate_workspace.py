@@ -179,8 +179,12 @@ ROUTED_MODULE_MARKERS = {
     ],
     "playbooks/reply-writing-rules.md": [
         "Only a human sends email or posts to Zendesk",
-        "Validate meaning, not sentence shape",
-        "Every definitive statement is supported by a `confirmed` Decision Packet item",
+        "문장 모양이 아니라 의미를 검증한다",
+        "Every definitive statement is supported by a `[확인]` item that carries a source",
+        # 0012: 발송 전 관문으로 가는 연결. 끊기면 관문이 고아가 된다.
+        "## 발송 전 점검",
+        "고객이 문의에서 밝힌 제약 안에서 실행 가능한 답을 준다",
+        "고객이 실제로 보는 언어의 UI 명칭을 쓴다",
     ],
     "playbooks/infra-change-process.md": ["Stop at the human gate", "Design rollback first"],
     "handoff/README.md": ["Verify the returned repository, branch, commit, command, and output"],
@@ -1091,6 +1095,11 @@ def validate_deidentified_repository(errors: list[str]) -> None:
         "유선으로 처리했으면",
         # 0011: 문서 충돌을 조용히 넘기지 않게 하는 문장
         "공식 문서끼리 충돌하면",
+        # 0012: 발송 전 관문. 규칙이 있는데도 안 지켜져서 만든 것이라 항목이 사라지면 안 된다.
+        "## 발송 전 점검",
+        "고객이 문의에서 밝힌 제약을 답변이 지키는가",
+        "콘솔 경로를 고객이 보는 화면 그대로 썼는가",
+        "지금 답할 수 있는데 되묻고 있지 않은가",
     ]:
         if marker not in intake_template:
             fail(errors, f"ticket intake template missing marker: {marker}")
