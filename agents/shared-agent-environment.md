@@ -58,7 +58,7 @@ Do not add a `tiket-ticket-workflow` Skill. The workflow is already divided acro
 - `playbooks/evidence-verification.md` implements the portable `answer-quality-gate` capability.
 - Claude Code maps that capability to its existing `seonbi` Skill.
 - Hermes, Codex, and Kiro apply the same repository playbook directly.
-- Decision Packet v2 and Reply Brief v2 normalize semantics before prose.
+- `playbooks/ticket-outputs.md` decides the artifact; evidence grades carry sources before prose.
 
 This is an intentional capability mapping, not a missing shared Skill. A host-specific Skill name does not need to be identical when the repository capability contract and output semantics are the same. Add a new Skill only when repeated samples reveal a procedure that is not already supplied by the router, playbooks, templates, or an existing approved Skill.
 

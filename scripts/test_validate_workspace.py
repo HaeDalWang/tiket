@@ -300,47 +300,6 @@ class WorkspaceValidatorTests(unittest.TestCase):
             "framework candidate customer index differs from the clean template",
         )
 
-    def test_example_rejects_operational_ticket_reference(self) -> None:
-        self.replace_once(
-            "examples/CUST-900/tickets/2026-08-28_Kiro-management-account-change/current.md",
-            "TICKET-EXAMPLE-002",
-            "TICKET-LOCAL-002",
-        )
-        self.assert_rejected(
-            self.run_validator("--framework"),
-            "example ticket uses operational ticket reference",
-        )
-
-    def test_invalid_account_reference_is_rejected(self) -> None:
-        self.replace_once(
-            "examples/CUST-900/tickets/2026-08-28_Kiro-management-account-change/current.md",
-            "account_ref: ACCOUNT-001",
-            "account_ref: customer-prod",
-        )
-        self.assert_rejected(self.run_validator("--framework"), "has invalid account_ref")
-
-    def test_completed_ticket_requires_sent_artifact(self) -> None:
-        self.replace_once(
-            "examples/CUST-900/tickets/2026-08-28_Kiro-management-account-change/history.md",
-            "## 비식별 실제 발송본",
-            "## 발송 artifact 누락",
-        )
-        self.assert_rejected(
-            self.run_validator("--framework"),
-            "completed without a preserved de-identified sent artifact",
-        )
-
-    def test_history_date_must_cover_latest_event(self) -> None:
-        self.replace_once(
-            "examples/CUST-900/tickets/2026-08-28_Kiro-management-account-change/history.md",
-            "updated_at: 2026-08-31",
-            "updated_at: 2026-08-28",
-        )
-        self.assert_rejected(
-            self.run_validator("--framework"),
-            "history updated_at predates its latest event",
-        )
-
     def test_reply_style_contract_markers_are_required(self) -> None:
         self.replace_once(
             "playbooks/reply-style.md",
@@ -351,29 +310,3 @@ class WorkspaceValidatorTests(unittest.TestCase):
             self.run_validator("--framework"),
             "reply style contract missing marker",
         )
-
-    def test_technical_detailed_example_structure_is_required(self) -> None:
-        self.replace_once(
-            "examples/reply-styles/technical-detailed.md",
-            "## 할인 방식별 판단 기준",
-            "## 비교",
-        )
-        self.assert_rejected(
-            self.run_validator("--framework"),
-            "technical-detailed example missing marker",
-        )
-
-    def test_example_personal_signature_is_rejected(self) -> None:
-        self.replace_once(
-            "examples/CUST-900/tickets/2026-08-28_Kiro-management-account-change/current.md",
-            "[작성자 소개]",
-            "가상회사 홍길동입니다.",
-        )
-        self.assert_rejected(
-            self.run_validator("--framework"),
-            "example contains a possible personal signature",
-        )
-
-
-if __name__ == "__main__":
-    unittest.main(verbosity=2)

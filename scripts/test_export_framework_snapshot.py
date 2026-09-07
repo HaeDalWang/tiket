@@ -29,7 +29,6 @@ class FrameworkExportTests(unittest.TestCase):
             result = self.run_export(destination)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertTrue((destination / ".git").is_dir())
-            self.assertTrue((destination / "examples/CUST-900").is_dir())
             self.assertFalse(any((destination / "customers").glob("CUST-*")))
             self.assertFalse((destination / ".private").exists())
             self.assertFalse(any(path.is_symlink() for path in destination.rglob("*")))
@@ -69,7 +68,6 @@ class FrameworkExportTests(unittest.TestCase):
                 text=True,
             )
             self.assertIn("DISTRIBUTION.md", staged.stdout)
-            self.assertIn("examples/CUST-900", staged.stdout)
 
     def test_export_rejects_nonempty_destination(self) -> None:
         with tempfile.TemporaryDirectory(prefix="tiket-framework-export-test-") as tempdir:

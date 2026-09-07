@@ -109,7 +109,6 @@ Git-only 업데이트가 충돌 없이 작동하려면 공통 프레임워크와
 - `agents/`
 - MCP 정본 `agents/environment/mcp-manifest.json`과 그로부터 생성되는 `.kiro/settings/mcp.json`, `.mcp.json`, `.claude/settings.json`, `.codex/config.toml`. 생성물은 직접 수정하지 않고 manifest를 고친 뒤 `scripts/render_agent_configs.py`로 다시 생성한다. 개인 MCP 서버는 user-level 설정에 둔다.
 - `templates/`
-- `examples/`의 비식별 재구성 고객 프로필과 티켓 표본
 - 공통 `playbooks/` 전체. `playbooks/pitfalls/`은 standalone proof가 아니라 재검증을 요구하는 shared routing warning이다.
 - `policy/cards/`의 모든 정책·가이드 카드
 - `policy/_routing.md`, `policy/README.md`, `policy/pending-review.md`
@@ -132,7 +131,7 @@ Git-only 업데이트가 충돌 없이 작동하려면 공통 프레임워크와
 
 정책 카드는 source pointer, 적용 범위, 상태, 검토 기한을 보존하되 동료 workspace가 비공개 source 원문을 보유하거나 검증했다고 간주하지 않는다. `sources.json`에 등록된 비식별 excerpt는 validator가 hash와 line count를 검증한다. 그 외 `inbox/` 원본이나 로컬 추출본이 없는 workspace에서는 source 확인이 필요한 판단을 확정하지 않고 승인된 원문 위치 또는 담당자에게 확인한다.
 
-공통 upstream의 `customers/`은 빈 운영 시작점과 인덱스만 제공한다. 실행 가능한 구조·스타일 표본은 `examples/`에 두며, 예시 reference를 실제 고객 reference나 private mapping으로 재사용하지 않는다.
+공통 upstream의 `customers/`와 `tickets/`는 빈 시작점만 제공한다. 형식 표본은 `templates/ticket-intake.md`와 `playbooks/ticket-outputs.md`에 둔다.
 
 ## 업데이트 안전 조건
 
@@ -143,7 +142,7 @@ Git-only 업데이트가 충돌 없이 작동하려면 공통 프레임워크와
 - 공통 upstream commit 전에는 `python3 scripts/validate_workspace.py --framework`를 실행해 운영 `customers/CUST-NNN/`이 포함되지 않았는지 확인한다.
 - validator 변경 후에는 `python3 scripts/test_validate_workspace.py`로 정상 후보와 주요 실패 경로를 모두 확인한다.
 - Alpha tag 전에는 `python3 scripts/check_public_sources.py`로 공통 문서와 예시 evidence의 public Sources URL을 재확인한다. 일시적인 네트워크 실패는 문서 오류와 구분해 재시도하되, 확인되지 않은 URL을 통과로 간주하지 않는다.
-- `examples/`가 아닌 고객 운영 자료, `.private/`, `policy/inbox/`, 미등록 로컬 추출본이 공통 프레임워크 변경에 포함되지 않았는지 확인한다.
+- 고객 운영 자료(`tickets/`, `customers/CUST-*`), `.private/`, `policy/inbox/`, 미등록 로컬 추출본이 공통 프레임워크 변경에 포함되지 않았는지 확인한다.
 - 공통 파일의 개선은 독립 워크스페이스에만 남기지 않고 upstream에 제안한다.
 
 ### 회사 GitHub 최초 게시
@@ -197,7 +196,7 @@ git commit -m "chore: merge announced upstream alpha"
 3. upstream 소유 파일만 변경해 두 workspace에 merge했다.
 4. 양쪽의 workspace 소유 자료 hash가 유지되고 `python3 scripts/validate_workspace.py`가 통과함을 확인했다.
 5. 한 workspace에서 upstream 소유 파일을 별도로 수정한 뒤 같은 구간의 upstream 변경을 merge하여 명시적 conflict가 발생함을 확인했다.
-6. 운영 `customers/` 기록을 제거하고 `examples/CUST-900/`을 포함한 최종 후보 snapshot으로 다시 실행해, 두 workspace의 local `customers/CUST-NNN/` 자료가 보존되고 양쪽 validator가 통과함을 확인했다.
+6. 운영 `tickets/`·`customers/` 기록을 제거한 최종 후보 snapshot으로 다시 실행해, 두 workspace의 로컬 자료가 보존되고 양쪽 validator가 통과함을 확인했다.
 7. clean exporter가 개인 repository의 commit history 없이 0-commit `main` repository를 만들고, 운영 고객·private/raw 자료를 제외한 상태에서 framework validator와 regression test를 통과함을 확인했다.
 
 이 테스트는 Git remote·경로 소유권 모델의 동작만 검증한다. 실제 동료 onboarding은 고정된 Alpha commit에서 다시 수행하며, agent별 Skill/MCP 설치와 `aws-customer-account-ops` re-enable gate는 별도로 통과해야 한다.

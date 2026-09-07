@@ -4,12 +4,12 @@ Classify first, then load only the listed modules. Never load every policy, play
 
 ## Universal
 
-- Customer ticket: read the profile, then the matching ticket directory's `current.md`. Read only relevant sections of `evidence.md`. Do not read `history.md` unless reconstructing a changed decision, actual sent/customer response, dispute, or historical thread. Record only de-identified context.
+- Customer ticket: record work in `tickets/<ticket-id>.md`. Read `customers/<customer-ref>/profile.md` when one exists; a profile is created only when contract, billing, or access scope is in question.
 - Policy: search `policy/_routing.md`; read only matching cards. A `draft` card cannot create a commitment or authorize action.
 - Capability: select through `agents/capability-catalog.md`; verify runtime state before use.
 - Use official/current evidence for load-bearing claims. Prior replies are history, not proof.
 - Reuse confirmed evidence already recorded in the same ticket when claim, target, and source remain applicable and no conflict exists. Re-fetch only for a new claim, missing support, conflict, changed target/version, or explicit freshness requirement.
-- Before any new or revised customer draft, register investigation items with stable `[F#]`, `[H#]`, and `[U#]` IDs; append the latest Decision Packet v2 JSON from `templates/decision-packet.md`; then append a Reply Brief v2 JSON from `templates/reply-brief.md`. Draft prose only from selected IDs. Preserve earlier packet, brief, and reply revisions.
+- Record the ticket in `tickets/<ticket-id>.md` from `templates/ticket-intake.md`. Decide the output first (`playbooks/ticket-outputs.md`), grade every claim `[확인]`/`[추측]`/`[모름]` with a source on each `[확인]`, and pass `## 발송 전 점검` before the draft goes out.
 
 ## Route
 
@@ -24,12 +24,8 @@ Classify first, then load only the listed modules. Never load every policy, play
 - Ticket outputs (decide this first): `playbooks/ticket-outputs.md`
 - Reply drafting: `playbooks/reply-writing-rules.md`
 - Reply presentation profiles: `playbooks/reply-style.md`
-- Semantic convergence: `templates/decision-packet.md`
-- Audience and style adaptation: `templates/reply-brief.md`
+- Ticket record and pre-send gate: `templates/ticket-intake.md`
 - Customer/profile fields: `templates/customer-profile.md`
-- Ticket current state: `templates/ticket.md`
-- Ticket evidence registry: `templates/ticket-evidence.md`
-- Ticket append-only history: `templates/ticket-history.md`
 - Multi-agent handoff: `agents/compatibility.md`
 - Known traps: search `playbooks/pitfalls/`
 

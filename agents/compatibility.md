@@ -17,7 +17,7 @@ Adapters exist only to bridge auto-loading differences. Do not copy customer dat
 2. Classify through `agents/task-router.md`.
 3. Load the ticket's `current.md`, selected `evidence.md` sections, and only the policy/capability/playbook modules selected by that route. Keep `history.md` unloaded unless historical reconstruction is required.
 4. Gather evidence and prepare a draft at the routed assurance tier.
-5. Normalize semantics in a Decision Packet, then create a Reply Brief before prose.
+5. Decide the output first (`playbooks/ticket-outputs.md`), grade evidence, then write prose.
 6. Use full evidence, PoC, contract, or change gates only when the route requires them.
 
 ## Concurrent work
@@ -31,7 +31,7 @@ Adapters exist only to bridge auto-loading differences. Do not copy customer dat
 
 - Customer and ticket path
 - Current status and last completed stage
-- Latest Decision Packet v2 JSON and Reply Brief v2 JSON; preserve earlier revisions
+- The ticket record `tickets/<ticket-id>.md` with graded evidence and the pre-send gate
 - Verified evidence and unresolved items
 - `current.md` and `evidence.md` pointers; `history.md` remains on-demand
 - Tools used and observation time

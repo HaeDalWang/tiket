@@ -6,7 +6,7 @@
 |---|---|---:|---|---|
 | 없음 | - | 0 | - | 공통 upstream에는 운영 고객 기록을 두지 않음 |
 
-비식별 참조 표본은 `examples/README.md`에서 찾는다. 각 workspace는 자기 private `origin`에서만 이 인덱스와 `customers/CUST-NNN/` 운영 기록을 추가한다.
+티켓 기록 형식은 `templates/ticket-intake.md`를 따른다. 각 workspace는 자기 로컬에서만 이 인덱스와 `customers/CUST-NNN/` 프로필을 추가한다.
 
 ## 신규 고객 등록
 

@@ -1,13 +1,13 @@
 # Reply Style Profiles
 
-Named profiles control presentation only. They never change Decision Packet IDs, evidence certainty, unknowns, prohibited claims, or required actions.
+Named profiles control presentation only. They never change evidence grades, unknowns, prohibited claims, or required actions.
 
 ## Selection
 
 - Use `seungdo-contextual` (**승도 스타일**) by default.
 - Use `technical-detailed` (**상세 설명형**) when the output must serve as a systematic reference, comparison, diagnostic note, or reusable technical explanation for multiple readers.
 - Customer-profile requirements and active policy override either profile.
-- Record the selected name in `Reply Brief.presentation.profile`. Do not blend profiles without stating ticket-specific exceptions in `presentation_requirements`.
+- Record the selected profile name in the ticket record. Do not blend profiles without stating the ticket-specific exception.
 - `audience.technical_depth` changes vocabulary and explanation depth within a profile; it does not select the profile. Choose `technical-detailed` for reusable document structure, not merely because the topic is technical or the answer is long.
 
 ## `seungdo-contextual` — 승도 스타일
@@ -90,16 +90,3 @@ Named profiles control presentation only. They never change Decision Packet IDs,
 - 상세함을 원문·명령·내부 조사 로그의 덤프로 대체하지 않는다.
 - 긴 문단보다 제목, 표, bullet을 사용해 훑어볼 수 있게 한다.
 - 결론을 뒤로 미루지 않는다. 상세형도 항상 요약을 먼저 둔다.
-
-## Reply Brief usage
-
-```json
-"presentation": {
-  "profile": "seungdo-contextual",
-  "tone": "formal-korean",
-  "structure": "conclusion-first",
-  "commands": "on-request"
-}
-```
-
-Use `presentation_requirements` only for ticket-specific form requirements, such as separating RI and Savings Plans or including a comparison table. Do not duplicate the selected profile's standing rules there.
