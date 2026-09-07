@@ -7,5 +7,6 @@ Read relevant trap documents before translating a customer procedure into code o
 | `fitcloud-per-account-cost-not-separable.md` | Account-level cost split, `corp/monthly`, multi-account customer |
 | `aurora-snapshot-encryption-unsupported.md` | Aurora snapshot copy, encryption, restore, KMS |
 | `ec2-ri-sp-platform-and-marketplace-pricing.md` | RI/SP coverage question, OS or distribution name, `Platform details`, Marketplace AMI, "discount did not apply" |
+| `savings-plans-inventory-is-in-fitcloud.md` | SP·RI 구매 후 확인 방법, "조회 권한이 없다", Billing 콘솔 경로 안내 |
 
 A trap is a routing warning, not standalone proof. Re-verify the active environment and official specification for each ticket.
