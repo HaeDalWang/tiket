@@ -1089,6 +1089,8 @@ def validate_deidentified_repository(errors: list[str]) -> None:
         "출처 없는 [확인] 은 [확인] 이 아니다",
         "확인 방법:",
         "유선으로 처리했으면",
+        # 0011: 문서 충돌을 조용히 넘기지 않게 하는 문장
+        "공식 문서끼리 충돌하면",
     ]:
         if marker not in intake_template:
             fail(errors, f"ticket intake template missing marker: {marker}")

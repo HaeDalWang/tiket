@@ -16,7 +16,7 @@
 
 - `origin`: 공통 private framework repository. clone과 pull 전용이다.
 - 개인 운영 remote: **미승인 상태.** 생성하지 않는다.
-- `customers/CUST-*`는 `.gitignore`로 Git 추적에서 제외한다. 로컬 파일로만 존재한다.
+- `tickets/`와 `customers/CUST-*`는 `.gitignore`로 Git 추적에서 제외한다. 로컬 파일로만 존재한다.
 - 공통 저장소로의 push는 `.githooks/pre-push`가 기본 차단한다.
 
 ```bash
@@ -32,7 +32,7 @@ python3 scripts/validate_workspace.py
 
 | 겹 | 수단 | 막는 것 | 우회 |
 |---|---|---|---|
-| 1 | `.gitignore`의 `customers/CUST-*` | 고객 자료가 commit에 들어가는 것 | `git add -f`로만 가능 |
+| 1 | `.gitignore`의 `tickets/`·`customers/CUST-*` | 고객 자료가 commit에 들어가는 것 | `git add -f`로만 가능 |
 | 2 | `.githooks/pre-push` | 고객 자료·`.private/`·raw 원본이 push되는 것 | 없음 |
 | 2 | `.githooks/pre-push` | 공통 저장소로의 일반 push | maintainer가 `TIKET_ALLOW_UPSTREAM_PUSH=1` 명시 |
 
@@ -51,7 +51,7 @@ git remote rename origin upstream
 git remote add origin <private-workspace-repository-url>
 ```
 
-1. `.gitignore`에서 `customers/CUST-*` 규칙을 제거한다.
+1. `.gitignore`에서 `tickets/`·`customers/CUST-*` 규칙을 제거한다.
 2. `.githooks/pre-push`의 Alpha 정책 차단(공통 저장소 push 차단)을 remote 이름 기준으로 좁힌다. 고객 자료 유출 차단 겹은 유지한다.
 3. `git push -u origin main`으로 개인 저장소에 첫 백업을 만든다.
 4. `python3 scripts/validate_workspace.py`를 실행하고, 이 문서의 "Alpha remote 모델" 절을 two-remote 모델로 갱신한다.
@@ -68,18 +68,22 @@ GitHub의 “Use this template”이나 파일 복사로 시작하면 공통 Git
 
 동료 엔지니어는 clone과 remote 설정만으로 고객 티켓 작업을 시작하지 않는다.
 
-1. `git config core.hooksPath .githooks`로 push guard를 활성화한다. 이 설정은 clone으로 전파되지 않는다.
-2. `agents/runtime-status.md`에서 blocked capability와 확인 시점을 읽는다.
+1. **온보딩 스크립트를 실행한다.** 필수 도구, push guard 활성화, Zendesk 자격증명, 저장소 검증을 한 번에 처리한다.
+   - macOS/Linux: `bash scripts/onboarding.sh`
+   - Windows: `pwsh -File scripts/onboarding.ps1`
+   - 확인만: `--check` / `-Check` (입력 없음)
+   push guard(`core.hooksPath`)는 clone으로 전파되지 않으므로 이 단계가 필수다.
+2. `agents/runtime-status.md`에서 capability 상태와 확인 시점을 읽는다.
 3. `agents/install-verification.md`에 따라 사용하는 agent의 Skill·MCP·CLI 준비 상태를 확인한다. MCP는 `python3 scripts/verify_mcp_servers.py`로 실제 연결과 tool 경계를 확인한다.
-4. `.private/customer-map.md` 등 로컬 매핑과 `customers/CUST-NNN/`은 로컬에만 생성하고 Git 추적에서 제외됨을 확인한다.
+4. `tickets/`, `customers/CUST-NNN/`, `.private/customer-map.md`가 로컬에만 존재하고 Git 추적에서 제외됨을 확인한다.
 5. `python3 scripts/validate_workspace.py`와 `git diff --check`를 실행한다. 공통 upstream 배포 담당자는 추가로 `python3 scripts/test_validate_workspace.py`, `python3 scripts/test_export_framework_snapshot.py`, `python3 scripts/validate_workspace.py --framework`, `python3 scripts/check_public_sources.py`를 실행한다.
-6. 비식별 합성 티켓으로 규칙 발견, no-send 경계, capability 선택, 근거·확실성 기록, 회신 스타일 선택을 smoke test한다.
-7. 모든 필수 capability가 ready가 될 때까지 결과를 `unsupported` 또는 `blocked`로 처리하고 우회 도구를 임의로 사용하지 않는다.
+6. **티켓 한 건을 끝까지 돌려본다.** `bash scripts/fetch-ticket.sh <번호>`로 가져와 `tickets/<번호>.md`에 기록하고, `playbooks/ticket-outputs.md`의 세 산출물 중 하나를 만든다. 실제 고객 계정 변경은 하지 않는다.
+7. 필수 capability가 ready가 될 때까지 결과를 `unsupported`로 처리하고 우회 도구를 임의로 사용하지 않는다.
 8. Alpha 기간에는 모든 고객 회신을 사람이 검토·발송하고, 반복 실패와 교정 내용을 framework 개선 후보로 기록한다.
 
 ## Alpha scope and known limitations
 
-- 공통 upstream이 보장하는 것은 entry rules, router, capability contract, templates, validator와 비식별 examples의 동일성이다.
+- 공통 upstream이 보장하는 것은 entry rules, router, capability contract, **산출물 3종 형식**, templates, validator와 비식별 examples의 동일성이다.
 - Skill, CLI, authentication과 agent별 runtime은 clone만으로 설치되지 않는다. 각 workspace가 `agents/install-verification.md`를 실행하고 unavailable capability를 명시해야 한다.
 - MCP는 clone으로 전달된다. `agents/environment/mcp-manifest.json`이 정본이고 Kiro·Claude Code·Codex host 설정은 `scripts/render_agent_configs.py`가 생성한다. Hermes는 profile에 저장하므로 같은 manifest로 수동 정렬한다. `uv`는 로컬 전제조건이다.
 - `customer-aws-readonly`와 `fitcloud-billing`은 v1.7.2 기준 enabled다. 각 workspace는 사용 전 `python3 scripts/test_aws_customer_skill.py`를 통과시키고 `agents/runtime-status.md`의 근거 등급(observed / operator-attested)을 확인한다.
@@ -118,7 +122,8 @@ Git-only 업데이트가 충돌 없이 작동하려면 공통 프레임워크와
 
 공통 프레임워크는 다음 운영 자료의 기존 내용을 수정하거나 수집하지 않는다.
 
-- `customers/` 아래의 고객 프로필과 티켓
+- `tickets/` 아래의 티켓 작업 기록 (실명 포함, 로컬 전용)
+- `customers/` 아래의 고객 프로필
 - `.private/`
 - `policy/inbox/`의 로컬 원본
 - `policy/sources.json`에 등록되지 않은 로컬 추출본
