@@ -93,6 +93,29 @@ class OnboardingParityTests(unittest.TestCase):
             self.assertNotIn("에이전트 이메일", text, f"{path.name}: 모호한 라벨")
             self.assertIn("Zendesk 로그인 이메일", text, f"{path.name}: 명확한 라벨이 없다")
 
+    def test_both_list_the_same_agent_homes(self) -> None:
+        """에이전트 경로 테이블이 갈리면 한쪽 OS 에서만 스킬을 못 찾는다."""
+        homes = [".claude", ".config/opencode", ".kiro", ".cursor",
+                 ".codeium/windsurf", ".augment", ".agents", ".gemini", ".hermes"]
+        for path in (SH, PS1):
+            text = path.read_text(encoding="utf-8")
+            for home in homes:
+                self.assertIn(home, text, f"{path.name}: 에이전트 경로 {home} 누락")
+
+    def test_neither_vendors_the_external_skill(self) -> None:
+        """스킬은 별도 저장소가 소유한다. 온보딩은 찾아주고 안내만 한다 —
+        저장소 안에 사본을 두면 EXTERNAL_ID 가 딸려오고 버전이 갈린다."""
+        for path in (SH, PS1):
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("saltware-csg-skills", text, f"{path.name}: 소스 저장소 안내 없음")
+            self.assertIn("install.sh", text, f"{path.name}: 설치 명령 안내 없음")
+        repo_skill = ROOT / "skills"
+        self.assertFalse(repo_skill.exists(), "외부 스킬을 저장소에 벤더링하지 않는다")
+
+    def test_both_check_copy_drift(self) -> None:
+        for path in (SH, PS1):
+            self.assertIn("사본이 갈라졌다", path.read_text(encoding="utf-8"), f"{path.name}")
+
     def test_both_support_a_non_interactive_check_mode(self) -> None:
         self.assertIn("--check", SH.read_text(encoding="utf-8"))
         self.assertIn("$Check", PS1.read_text(encoding="utf-8"))

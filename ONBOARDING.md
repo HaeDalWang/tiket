@@ -129,9 +129,20 @@ python3 scripts/verify_mcp_servers.py
 
 ## 4. 고객 AWS 조회 도구 설치
 
-**정지우**에게 `aws-customer-account-ops` 스킬을 받아서 설치하세요. 설정 파일도 같이 받으면 됩니다.
+스킬은 별도 저장소(`saltware-csg-skills`)에 있습니다. **파일을 받는 게 아니라 저장소 접근 권한을 받으면 됩니다** — 한 번만 하면 그다음부터는 직접 받습니다.
 
-> ⚠️ 받은 설정 파일 내용은 채팅이나 이슈에 붙여넣지 마세요. 접속 열쇠가 들어있습니다.
+```bash
+git clone git@haedalwang:fitcloud/saltware-csg-skills.git ~/opensource/saltware-csg-skills
+bash ~/opensource/saltware-csg-skills/install.sh
+```
+
+접근이 거부되면 **정지우**에게 저장소 권한을 요청하세요.
+
+설치 관리자가 감지된 에이전트를 보여주고 어디에 깔지 물어봅니다. 다른 경로에 clone 했다면 `SALTWARE_CSG_SKILLS` 환경변수로 알려주면 온보딩 스크립트가 찾습니다.
+
+브로커 설정 파일(`~/.config/saltware/credential-broker.conf`)은 설치 관리자가 만듭니다.
+
+> ⚠️ 이 설정 파일 내용을 채팅이나 이슈에 붙여넣지 마세요. 접속 열쇠가 들어있습니다.
 
 설치했으면 확인:
 

@@ -15,13 +15,32 @@ set -uo pipefail
 # STEPS-PARITY-START
 STEP_NAMES=(
   "required-tools"
+  "agents"
   "push-guard"
+  "mcp"
+  "customer-skill"
   "zendesk-credentials"
   "workspace-validation"
 )
 # STEPS-PARITY-END
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# saltware-csg-skills 는 별도 저장소다. 저장소 안에 사본을 두지 않는 이유는
+# design/decisions/0014 참조 — EXTERNAL_ID 하드코딩, 버전 드리프트, 외부 소유.
+SKILL_REPO_URL="git@haedalwang:fitcloud/saltware-csg-skills.git"
+SKILL_REPO_CANDIDATES=(
+  "${SALTWARE_CSG_SKILLS:-}"
+  "$HOME/opensource/saltware-csg-skills"
+  "$HOME/saltware-csg-skills"
+  "$HOME/work/saltware-csg-skills"
+)
+# 에이전트 이름 → 스킬 설치 경로. install.sh 의 테이블과 같은 규약.
+AGENT_NAMES=(claude-code opencode kiro cursor windsurf augment codex gemini hermes)
+AGENT_HOMES=(
+  "$HOME/.claude" "$HOME/.config/opencode" "$HOME/.kiro" "$HOME/.cursor"
+  "$HOME/.codeium/windsurf" "$HOME/.augment" "$HOME/.agents" "$HOME/.gemini" "$HOME/.hermes"
+)
+
 CONF_DIR="$HOME/.config/saltware"
 ZENDESK_CONF="$CONF_DIR/zendesk.conf"
 CHECK_ONLY=0
@@ -34,7 +53,7 @@ skip() { printf '  \033[33m건너뜀\033[0m %s\n' "$1"; }
 step() { printf '\n[%s] %s\n' "$1" "$2"; }
 
 # ── 1. required-tools ────────────────────────────────────────────────────────
-step 1/4 "필수 도구"
+step 1/7 "필수 도구"
 for bin in git python3 curl jq; do
   if command -v "$bin" >/dev/null 2>&1; then
     ok "$bin"
@@ -43,9 +62,27 @@ for bin in git python3 curl jq; do
   fi
 done
 
+# ── 2. agents ────────────────────────────────────────────────────────────────
+step 2/7 "설치된 에이전트"
+detected_agents=()
+for i in "${!AGENT_NAMES[@]}"; do
+  if [ -d "${AGENT_HOMES[$i]}" ]; then
+    detected_agents+=("${AGENT_NAMES[$i]}")
+    skill_dir="${AGENT_HOMES[$i]}/skills/aws-customer-account-ops"
+    if [ -f "$skill_dir/SKILL.md" ]; then
+      ok "${AGENT_NAMES[$i]}  (고객 조회 스킬 있음)"
+    else
+      ok "${AGENT_NAMES[$i]}"
+    fi
+  fi
+done
+if [ "${#detected_agents[@]}" -eq 0 ]; then
+  bad "감지된 에이전트 없음 — Claude Code·Codex·Kiro·Hermes 중 하나는 설치돼 있어야 한다"
+fi
+
 # ── 2. push-guard ────────────────────────────────────────────────────────────
 # 고객 자료가 공용 저장소로 나가는 걸 막는 hook. 활성화는 로컬에서 한 번 해야 한다.
-step 2/4 "push guard"
+step 3/7 "push guard"
 current_hooks=$(git -C "$ROOT" config --get core.hooksPath 2>/dev/null || true)
 if [ "$current_hooks" = ".githooks" ]; then
   ok "core.hooksPath = .githooks"
@@ -64,8 +101,66 @@ else
   bad "pre-push hook 이 없거나 실행 권한 없음 — chmod +x .githooks/pre-push"
 fi
 
+# ── 4. mcp ───────────────────────────────────────────────────────────────────
+# MCP 설정 파일은 clone 으로 따라온다. 확인할 것은 "실제로 붙는가" 뿐이다.
+step 4/7 "MCP 연결"
+for host in .mcp.json .claude/settings.json .codex/config.toml .kiro/settings/mcp.json; do
+  [ -f "$ROOT/$host" ] || bad "MCP 설정 누락: $host — python3 scripts/render_agent_configs.py 로 생성"
+done
+if command -v python3 >/dev/null 2>&1; then
+  mcp_out=$(cd "$ROOT" && python3 scripts/verify_mcp_servers.py 2>&1)
+  mcp_rc=$?
+  mcp_last=$(printf '%s' "$mcp_out" | tail -1)
+  case "$mcp_rc" in
+    0) ok "$mcp_last" ;;
+    2) skip "$mcp_last" ;;   # 전제 조건 미비·네트워크 — 경계 위반이 아니다
+    *) bad "$mcp_last" ;;
+  esac
+fi
+if [ -d "$HOME/.hermes" ]; then
+  skip "Hermes 는 MCP 설정을 저장소 밖 프로필에 둔다. agents/environment/mcp-manifest.json 에 맞춰 직접 정렬한다"
+fi
+
+# ── 5. customer-skill ────────────────────────────────────────────────────────
+# 스킬은 별도 저장소(saltware-csg-skills)가 소유한다. 여기서는 찾아주고 안내만 한다.
+step 5/7 "고객 AWS 조회 스킬"
+marker_path=$(aws configure get profile.csg-login.credential_process 2>/dev/null || true)
+if [ -n "$marker_path" ] && [ -f "$marker_path" ]; then
+  ok "설치됨 — 실행 경로: $(dirname "$marker_path" | sed "s|$HOME|~|")"
+  # 사본이 갈라졌는지 본다. self-update 가 부분 실패하면 여기서 드러난다.
+  hashes=$(for h in "${AGENT_HOMES[@]}"; do
+    d="$h/skills/aws-customer-account-ops"
+    [ -d "$d" ] || continue
+    hasher=$(command -v sha256sum || echo "shasum -a 256")
+    cat "$d"/get-customer-credentials.sh "$d"/get-sts-token.sh "$d"/fitcloud-api.sh 2>/dev/null | $hasher | cut -c1-16
+  done | sort -u | grep -c .)
+  if [ "${hashes:-0}" -le 1 ]; then
+    ok "사본 일치"
+  else
+    bad "사본이 갈라졌다 (${hashes}종) — saltware-csg-skills 에서 ./install.sh --all 재실행"
+  fi
+else
+  skill_repo=""
+  for cand in "${SKILL_REPO_CANDIDATES[@]}"; do
+    [ -n "$cand" ] && [ -f "$cand/install.sh" ] && { skill_repo="$cand"; break; }
+  done
+  if [ -z "$skill_repo" ]; then
+    bad "스킬 미설치, 소스 저장소도 없음"
+    printf "        해결: 저장소를 clone 한 뒤 설치한다 (접근 권한은 담당자에게 요청)\n"
+    printf "          git clone %s ~/opensource/saltware-csg-skills\n" "$SKILL_REPO_URL"
+    printf "          bash ~/opensource/saltware-csg-skills/install.sh\n"
+  else
+    bad "스킬 미설치 — 소스는 $(printf '%s' "$skill_repo" | sed "s|$HOME|~|") 에 있다"
+    printf "        해결: bash %s/install.sh\n" "$(printf '%s' "$skill_repo" | sed "s|$HOME|~|")"
+    if [ "$CHECK_ONLY" -eq 0 ]; then
+      printf "\n        감지된 에이전트 (install.sh --status):\n"
+      (cd "$skill_repo" && bash install.sh --status 2>&1 | sed 's/^/          /' | head -20) || true
+    fi
+  fi
+fi
+
 # ── 3. zendesk-credentials ───────────────────────────────────────────────────
-step 3/4 "Zendesk 자격증명"
+step 6/7 "Zendesk 자격증명"
 conf_has() { [ -f "$ZENDESK_CONF" ] && grep -qE "^$1=" "$ZENDESK_CONF" 2>/dev/null; }
 
 if conf_has ZENDESK_SUBDOMAIN && conf_has ZENDESK_EMAIL && conf_has ZENDESK_API_TOKEN; then
@@ -145,7 +240,7 @@ EOF
 fi
 
 # ── 4. workspace-validation ──────────────────────────────────────────────────
-step 4/4 "저장소 검증"
+step 7/7 "저장소 검증"
 if command -v python3 >/dev/null 2>&1; then
   if out=$(cd "$ROOT" && python3 scripts/validate_workspace.py 2>&1); then
     ok "$(printf '%s' "$out" | head -1)"

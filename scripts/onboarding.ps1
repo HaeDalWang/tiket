@@ -17,7 +17,10 @@ $ErrorActionPreference = "Continue"
 # STEPS-PARITY-START
 $StepNames = @(
   "required-tools"
+  "agents"
   "push-guard"
+  "mcp"
+  "customer-skill"
   "zendesk-credentials"
   "workspace-validation"
 )
@@ -25,6 +28,28 @@ $StepNames = @(
 
 $Root = Split-Path (Split-Path $MyInvocation.MyCommand.Path -Parent) -Parent
 $UserHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+# saltware-csg-skills 는 별도 저장소다. 저장소 안에 사본을 두지 않는 이유는
+# design/decisions/0014 참조 — EXTERNAL_ID 하드코딩, 버전 드리프트, 외부 소유.
+$SkillRepoUrl = "git@haedalwang:fitcloud/saltware-csg-skills.git"
+$SkillRepoCandidates = @(
+  $env:SALTWARE_CSG_SKILLS
+  (Join-Path $UserHome "opensource/saltware-csg-skills")
+  (Join-Path $UserHome "saltware-csg-skills")
+  (Join-Path $UserHome "work/saltware-csg-skills")
+)
+# 에이전트 이름 → 스킬 설치 경로. install.ps1 의 테이블과 같은 규약.
+$AgentTable = @(
+  @{ Name = "claude-code"; Home = (Join-Path $UserHome ".claude") }
+  @{ Name = "opencode";    Home = (Join-Path $UserHome ".config/opencode") }
+  @{ Name = "kiro";        Home = (Join-Path $UserHome ".kiro") }
+  @{ Name = "cursor";      Home = (Join-Path $UserHome ".cursor") }
+  @{ Name = "windsurf";    Home = (Join-Path $UserHome ".codeium/windsurf") }
+  @{ Name = "augment";     Home = (Join-Path $UserHome ".augment") }
+  @{ Name = "codex";       Home = (Join-Path $UserHome ".agents") }
+  @{ Name = "gemini";      Home = (Join-Path $UserHome ".gemini") }
+  @{ Name = "hermes";      Home = (Join-Path $UserHome ".hermes") }
+)
+
 $ConfDir = Join-Path $UserHome ".config/saltware"
 $ZendeskConf = Join-Path $ConfDir "zendesk.conf"
 
@@ -35,7 +60,7 @@ function Write-Skip { param([string]$m) Write-Host "  건너뜀 $m" -ForegroundC
 function Write-Step { param([string]$n, [string]$m) Write-Host "`n[$n] $m" }
 
 # ── 1. required-tools ────────────────────────────────────────────────────────
-Write-Step "1/4" "필수 도구"
+Write-Step "1/7" "필수 도구"
 foreach ($bin in @("git", "python3", "curl", "jq")) {
     $found = Get-Command $bin -ErrorAction SilentlyContinue
     # Windows 에서 python3 가 없고 python 만 있는 경우가 흔하다.
@@ -47,8 +72,26 @@ foreach ($bin in @("git", "python3", "curl", "jq")) {
     else        { Write-Bad "$bin 없음 — winget install $bin 또는 scoop install $bin" }
 }
 
+# ── 2. agents ────────────────────────────────────────────────────────────────
+Write-Step "2/7" "설치된 에이전트"
+$detected = @()
+foreach ($a in $AgentTable) {
+    if (Test-Path $a.Home) {
+        $detected += $a.Name
+        $skillDir = Join-Path $a.Home "skills/aws-customer-account-ops"
+        if (Test-Path (Join-Path $skillDir "SKILL.md")) {
+            Write-Ok "$($a.Name)  (고객 조회 스킬 있음)"
+        } else {
+            Write-Ok $a.Name
+        }
+    }
+}
+if ($detected.Count -eq 0) {
+    Write-Bad "감지된 에이전트 없음 — Claude Code·Codex·Kiro·Hermes 중 하나는 설치돼 있어야 한다"
+}
+
 # ── 2. push-guard ────────────────────────────────────────────────────────────
-Write-Step "2/4" "push guard"
+Write-Step "3/7" "push guard"
 $currentHooks = (git -C $Root config --get core.hooksPath 2>$null)
 if ($currentHooks -eq ".githooks") {
     Write-Ok "core.hooksPath = .githooks"
@@ -65,8 +108,83 @@ if (Test-Path (Join-Path $Root ".githooks/pre-push")) {
     Write-Bad "pre-push hook 이 없다"
 }
 
+# ── 4. mcp ───────────────────────────────────────────────────────────────────
+# MCP 설정 파일은 clone 으로 따라온다. 확인할 것은 "실제로 붙는가" 뿐이다.
+Write-Step "4/7" "MCP 연결"
+foreach ($host_file in @(".mcp.json", ".claude/settings.json", ".codex/config.toml", ".kiro/settings/mcp.json")) {
+    if (-not (Test-Path (Join-Path $Root $host_file))) {
+        Write-Bad "MCP 설정 누락: $host_file — python3 scripts/render_agent_configs.py 로 생성"
+    }
+}
+$pyMcp = (Get-Command python3 -ErrorAction SilentlyContinue) ?? (Get-Command python -ErrorAction SilentlyContinue)
+if ($pyMcp) {
+    Push-Location $Root
+    $mcpOut = & $pyMcp.Source scripts/verify_mcp_servers.py 2>&1
+    $mcpRc = $LASTEXITCODE
+    Pop-Location
+    $mcpLast = ($mcpOut | Select-Object -Last 1)
+    switch ($mcpRc) {
+        0 { Write-Ok $mcpLast }
+        2 { Write-Skip $mcpLast }   # 전제 조건 미비·네트워크 — 경계 위반이 아니다
+        default { Write-Bad $mcpLast }
+    }
+}
+if (Test-Path (Join-Path $UserHome ".hermes")) {
+    Write-Skip "Hermes 는 MCP 설정을 저장소 밖 프로필에 둔다. agents/environment/mcp-manifest.json 에 맞춰 직접 정렬한다"
+}
+
+# ── 5. customer-skill ────────────────────────────────────────────────────────
+# 스킬은 별도 저장소(saltware-csg-skills)가 소유한다. 여기서는 찾아주고 안내만 한다.
+Write-Step "5/7" "고객 AWS 조회 스킬"
+$markerPath = (aws configure get profile.csg-login.credential_process 2>$null)
+if ($markerPath -and (Test-Path $markerPath)) {
+    $execDir = Split-Path $markerPath -Parent
+    Write-Ok "설치됨 — 실행 경로: $($execDir.Replace($UserHome, '~'))"
+    # 사본이 갈라졌는지 본다. self-update 가 부분 실패하면 여기서 드러난다.
+    $hashes = @()
+    foreach ($a in $AgentTable) {
+        $d = Join-Path $a.Home "skills/aws-customer-account-ops"
+        if (-not (Test-Path $d)) { continue }
+        $buf = ""
+        foreach ($f in @("get-customer-credentials.sh", "get-sts-token.sh", "fitcloud-api.sh")) {
+            $fp = Join-Path $d $f
+            if (Test-Path $fp) { $buf += (Get-Content $fp -Raw) }
+        }
+        if ($buf) {
+            $sha = [System.Security.Cryptography.SHA256]::Create()
+            $h = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($buf))).Replace("-","").Substring(0,16)
+            $hashes += $h
+        }
+    }
+    $distinct = ($hashes | Sort-Object -Unique).Count
+    if ($distinct -le 1) { Write-Ok "사본 일치" }
+    else { Write-Bad "사본이 갈라졌다 ($distinct 종) — saltware-csg-skills 에서 ./install.sh --all 재실행" }
+} else {
+    $skillRepo = $null
+    foreach ($cand in $SkillRepoCandidates) {
+        if ($cand -and (Test-Path (Join-Path $cand "install.sh"))) { $skillRepo = $cand; break }
+    }
+    if (-not $skillRepo) {
+        Write-Bad "스킬 미설치, 소스 저장소도 없음"
+        Write-Host "        해결: 저장소를 clone 한 뒤 설치한다 (접근 권한은 담당자에게 요청)"
+        Write-Host "          git clone $SkillRepoUrl ~/opensource/saltware-csg-skills"
+        Write-Host "          pwsh -File ~/opensource/saltware-csg-skills/install.ps1"
+    } else {
+        $shown = $skillRepo.Replace($UserHome, '~')
+        Write-Bad "스킬 미설치 — 소스는 $shown 에 있다"
+        Write-Host "        해결: pwsh -File $shown/install.ps1"
+        if (-not $Check) {
+            Write-Host ""
+            Write-Host "        감지된 에이전트 (install.ps1 --status):"
+            Push-Location $skillRepo
+            (pwsh -NoProfile -File ./install.ps1 --status 2>&1 | Select-Object -First 20) | ForEach-Object { Write-Host "          $_" }
+            Pop-Location
+        }
+    }
+}
+
 # ── 3. zendesk-credentials ───────────────────────────────────────────────────
-Write-Step "3/4" "Zendesk 자격증명"
+Write-Step "6/7" "Zendesk 자격증명"
 function Test-ConfKey {
     param([string]$Key)
     if (-not (Test-Path $ZendeskConf)) { return $false }
@@ -163,7 +281,7 @@ if ((Test-ConfKey "ZENDESK_SUBDOMAIN") -and (Test-ConfKey "ZENDESK_EMAIL") -and 
 }
 
 # ── 4. workspace-validation ──────────────────────────────────────────────────
-Write-Step "4/4" "저장소 검증"
+Write-Step "7/7" "저장소 검증"
 $py = (Get-Command python3 -ErrorAction SilentlyContinue) ?? (Get-Command python -ErrorAction SilentlyContinue)
 if ($py) {
     Push-Location $Root
